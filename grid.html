@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Innovation Grid</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,300&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+
+    :root {
+      --white: #fff;
+      --gap: 3px;
+      --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #080d18;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+
+    .services-section {
+      width: 100%;
+      max-width: 1680px;
+    }
+
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: 360px 480px;
+      gap: var(--gap);
+      background: #080d18;
+      position: relative;
+    }
+
+
+    .service-card:nth-child(1) {
+      grid-column: 1 / span 2;
+    }
+
+    .service-card:nth-child(2) {
+      grid-column: 3 / span 2;
+    }
+
+    .service-card:nth-child(3) {
+      grid-column: 5 / span 2;
+    }
+
+    .service-card:nth-child(4) {
+      grid-column: 1 / span 3;
+    }
+
+    .service-card:nth-child(5) {
+      grid-column: 4 / span 3;
+    }
+
+
+    .service-card {
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+
+    /* Own image layer */
+    .bg-own {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transition: opacity 0.65s var(--ease), transform 0.65s var(--ease);
+    }
+
+
+    /*
+   * Panorama layer:
+   * Sized to the FULL grid, offset so the card's
+   * overflow:hidden clips the correct slice.
+   * width / height / left / top set by JS.
+   */
+    .bg-panorama {
+      position: absolute;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 0.65s var(--ease), transform 0.65s var(--ease);
+      pointer-events: none;
+      will-change: opacity, transform;
+    }
+
+
+    .card-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(1, 13, 36, 0.10) 0%, rgba(1, 13, 36, 0.42) 55%, rgba(1, 13, 36, 0.80) 100%);
+      z-index: 1;
+      transition: background 0.5s var(--ease);
+    }
+
+
+    .services-grid.has-hover .service-card:not(.is-active) .card-overlay {
+      background: linear-gradient(160deg, rgba(1, 13, 36, 0.35) 0%, rgba(1, 13, 36, 0.60) 55%, rgba(1, 13, 36, 0.88) 100%);
+    }
+
+
+    .service-card.is-active .card-overlay {
+      background: linear-gradient(160deg, rgba(1, 13, 36, 0.02) 0%, rgba(1, 13, 36, 0.22) 55%, rgba(1, 13, 36, 0.70) 100%) !important;
+    }
+
+
+    .card-content {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 28px 32px 34px;
+    }
+
+
+    .card-title {
+      font-size: clamp(1.1rem, 1.8vw, 1.45rem);
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.80);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      transition: color 0.3s ease;
+    }
+
+
+    .service-card.is-active .card-title {
+      color: #fff;
+      font-weight: 400;
+    }
+
+
+    .card-body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.5s var(--ease);
+    }
+
+
+    .card-body-inner {
+      overflow: hidden;
+    }
+
+
+    .service-card.is-active .card-body {
+      grid-template-rows: 1fr;
+    }
+
+
+    .card-description {
+      font-size: 0.9rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.6;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      max-width: 380px;
+    }
+
+
+    .card-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: transparent;
+      border: 1.5px solid rgba(255, 255, 255, 0.80);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 11px 20px;
+      text-decoration: none;
+      transition: background 0.22s ease, color 0.22s ease;
+      width: fit-content;
+    }
+
+
+    .card-btn svg {
+      width: 13px;
+      height: 13px;
+      transition: transform 0.22s ease;
+    }
+
+    .card-btn:hover {
+      background: #fff;
+      color: #001b4d;
+    }
+
+    .card-btn:hover svg {
+      transform: translateX(4px);
+    }
+
+
+    /* Transition states */
+    .services-grid.has-hover .bg-own {
+      opacity: 0;
+      transform: scale(1.04);
+    }
+
+
+    .services-grid.has-hover .bg-panorama {
+      opacity: 1;
+    }
+
+
+    .service-card.is-active .bg-panorama {
+      transform: scale(1.03);
+    }
+  </style>
+</head>
+
+<body>
+
+
+  <section class="services-section">
+    <div class="services-grid" id="servicesGrid">
+
+
+      <article class="service-card" data-index="0">
+        <div class="bg-own"></div>
+        <div class="bg-panorama"></div>
+        <div class="card-overlay"></div>
+        <div class="card-content">
+          <h3 class="card-title">Energy transition</h3>
+          <div class="card-body">
+            <div class="card-body-inner">
+              <p class="card-description">Introducing new low-emission propulsion technology to aerospace</p>
+              <a href="#" class="card-btn">Discover new energies <svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg></a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="service-card" data-index="1">
+        <div class="bg-own"></div>
+        <div class="bg-panorama"></div>
+        <div class="card-overlay"></div>
+        <div class="card-content">
+          <h3 class="card-title">Aircraft operations</h3>
+          <div class="card-body">
+            <div class="card-body-inner">
+              <p class="card-description">Towards safer, more efficient and interoperable flight</p>
+              <a href="#" class="card-btn">Learn about new operations <svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg></a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="service-card" data-index="2">
+        <div class="bg-own"></div>
+        <div class="bg-panorama"></div>
+        <div class="card-overlay"></div>
+        <div class="card-content">
+          <h3 class="card-title">Digital transformation</h3>
+          <div class="card-body">
+            <div class="card-body-inner">
+              <p class="card-description">A digital-first approach to designing aerospace products</p>
+              <a href="#" class="card-btn">Discover digital projects <svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg></a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="service-card" data-index="3">
+        <div class="bg-own"></div>
+        <div class="bg-panorama"></div>
+        <div class="card-overlay"></div>
+        <div class="card-content">
+          <h3 class="card-title">Future aircraft</h3>
+          <div class="card-body">
+            <div class="card-body-inner">
+              <p class="card-description">Technologies, designs and materials that will shape future airplanes and
+                helicopters</p>
+              <a href="#" class="card-btn">Discover future aircraft <svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg></a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="service-card" data-index="4">
+        <div class="bg-own"></div>
+        <div class="bg-panorama"></div>
+        <div class="card-overlay"></div>
+        <div class="card-content">
+          <h3 class="card-title">Innovation ecosystem</h3>
+          <div class="card-body">
+            <div class="card-body-inner">
+              <p class="card-description">Leveraging collective intelligence to deliver results</p>
+              <a href="#" class="card-btn">Learn about the ecosystem <svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg></a>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+    </div>
+  </section>
+
+
+  <script>
+    const images = [
+    'https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?w=1800&q=85',
+    'https://images.unsplash.com/photo-1540962351504-03099e0a754b?w=1800&q=85',
+    'https://images.unsplash.com/photo-1518432031352-d6fc5c10da5a?w=1800&q=85',
+    'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1800&q=85',
+    'https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?w=1800&q=85',
+  ];
+
+
+  const grid  = document.getElementById('servicesGrid');
+  const cards = Array.from(grid.querySelectorAll('.service-card'));
+
+
+  // Set each card's own background
+  cards.forEach((card, i) => {
+    card.querySelector('.bg-own').style.backgroundImage = `url('${images[i]}')`;
+  });
+
+
+  // Pre-load
+  images.forEach(src => { const img = new Image(); img.src = src; });
+
+
+  /*
+   * The panorama trick:
+   * Each .bg-panorama is sized to match the ENTIRE grid's
+   * pixel dimensions, then offset negatively by the card's
+   * position relative to the grid, so overflow:hidden on
+   * the card reveals only that card's portion of the image.
+   * All cards together = one seamless image.
+   */
+  function applyPanorama(hoveredIdx) {
+    const gRect  = grid.getBoundingClientRect();
+    const imgUrl = `url('${images[hoveredIdx]}')`;
+
+
+    cards.forEach(card => {
+      const cRect = card.getBoundingClientRect();
+      const pan   = card.querySelector('.bg-panorama');
+
+
+      pan.style.width            = gRect.width  + 'px';
+      pan.style.height           = gRect.height + 'px';
+      pan.style.left             = (-(cRect.left - gRect.left)) + 'px';
+      pan.style.top              = (-(cRect.top  - gRect.top))  + 'px';
+      pan.style.backgroundImage  = imgUrl;
+    });
+  }
+
+
+  cards.forEach((card, idx) => {
+    card.addEventListener('mouseenter', () => {
+      grid.classList.add('has-hover');
+      cards.forEach(c => c.classList.remove('is-active'));
+      card.classList.add('is-active');
+      applyPanorama(idx);
+    });
+  });
+
+
+  grid.addEventListener('mouseleave', () => {
+    grid.classList.remove('has-hover');
+    cards.forEach(c => c.classList.remove('is-active'));
+  });
+
+
+  window.addEventListener('resize', () => {
+    const ai = cards.findIndex(c => c.classList.contains('is-active'));
+    if (ai !== -1) applyPanorama(ai);
+  });
+  </script>
+</body>
+
+</html>

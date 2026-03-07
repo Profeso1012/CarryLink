@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Header from "./Header";
 import Footer from "./Footer";
-import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 interface SidebarItemProps {
   to: string;
@@ -58,7 +58,8 @@ function SidebarItem({ to, icon: Icon, label, badge, badgeVariant = "primary" }:
 
 export default function AccountLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const [kycStatus, setKycStatus] = useState<string>("not_started"); // Mocking for now
+  const { logout, user } = useAuthStore();
+  const kycStatus = user?.kyc_status || "not_started";
 
   // Example stats for badges
   const stats = {
@@ -150,7 +151,10 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
               </div>
 
               <div className="pt-4 border-t border-carry-light/20">
-                <button className="flex items-center gap-3 px-[14px] py-[10px] w-full text-left text-red-500 hover:bg-red-50 rounded-md transition-all text-[13.5px] font-medium">
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-3 px-[14px] py-[10px] w-full text-left text-red-500 hover:bg-red-50 rounded-md transition-all text-[13.5px] font-medium"
+                >
                   <LogOut className="w-[15px] h-[15px] shrink-0 stroke-[2.5px]" />
                   Log Out
                 </button>

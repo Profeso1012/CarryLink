@@ -119,6 +119,17 @@ export default function Index() {
               </Link>
             </div>
           </div>
+
+          <div className="hero-card hidden lg:block">
+            <span className="hero-tag">Now Live</span>
+            <div className="hero-date">Phase 1 Corridors Open</div>
+            <h3 className="hero-htitle">Nigeria ↔ Canada, UK & USA now accepting shipment requests</h3>
+            <Link to="/account/send-package" className="hero-link">
+              Start shipping
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
           <div className="scroll-ind">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
               <path d="M7 10l5 5 5-5z" />

@@ -1,17 +1,22 @@
 import "./global.css";
 
 import { Toaster } from "@/components/ui/toaster";
-import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import KYCPage from "./pages/account/KYCPage";
+import PostTrip from "./pages/account/PostTrip";
+import SendPackage from "./pages/account/SendPackage";
+import MyMatches from "./pages/account/MyMatches";
+import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AccountLayout from "@/components/layout/AccountLayout";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -49,27 +54,85 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/account/dashboard" element={<Dashboard />} />
-          
+
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/account/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+
           {/* Public Routes placeholders */}
           <Route path="/how-it-works" element={<PlaceholderPage title="How It Works" />} />
           <Route path="/browse/listings" element={<PlaceholderPage title="Browse Listings" />} />
           <Route path="/browse/shipments" element={<PlaceholderPage title="Browse Shipments" />} />
-          
+
           {/* Account Routes placeholders */}
-          <Route path="/account/my-shipments" element={<PlaceholderPage title="My Shipments" sidebar />} />
-          <Route path="/account/my-trips" element={<PlaceholderPage title="My Trips" sidebar />} />
-          <Route path="/account/post-trip" element={<PlaceholderPage title="Post a Trip" sidebar />} />
-          <Route path="/account/send-package" element={<PlaceholderPage title="Send a Package" sidebar />} />
-          <Route path="/account/matches" element={<PlaceholderPage title="My Matches" sidebar />} />
-          <Route path="/account/payments" element={<PlaceholderPage title="Payments" sidebar />} />
-          <Route path="/account/wallet" element={<PlaceholderPage title="Wallet" sidebar />} />
-          <Route path="/account/kyc" element={<PlaceholderPage title="KYC Verification" sidebar />} />
-          <Route path="/account/messages" element={<PlaceholderPage title="Messages" sidebar />} />
-          <Route path="/account/notifications" element={<PlaceholderPage title="Notifications" sidebar />} />
-          <Route path="/account/reviews" element={<PlaceholderPage title="Reviews" sidebar />} />
-          <Route path="/account/disputes" element={<PlaceholderPage title="Disputes" sidebar />} />
-          <Route path="/account/settings" element={<PlaceholderPage title="Settings" sidebar />} />
+          <Route path="/account/my-shipments" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="My Shipments" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/my-trips" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="My Trips" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/post-trip" element={
+            <ProtectedRoute requireKYC>
+              <PostTrip />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/send-package" element={
+            <ProtectedRoute>
+              <SendPackage />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/matches" element={
+            <ProtectedRoute>
+              <MyMatches />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/payments" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Payments" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/wallet" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Wallet" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/kyc" element={
+            <ProtectedRoute>
+              <KYCPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/messages" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Messages" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/notifications" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Notifications" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/reviews" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Reviews" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/disputes" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Disputes" sidebar />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/settings" element={
+            <ProtectedRoute>
+              <PlaceholderPage title="Settings" sidebar />
+            </ProtectedRoute>
+          } />
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
@@ -79,4 +142,4 @@ const App = () => (
   </QueryClientProvider>
 );
 
-createRoot(document.getElementById("root")!).render(<App />);
+export default App;

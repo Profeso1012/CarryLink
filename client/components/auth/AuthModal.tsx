@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Mail, Phone, Lock, User, Globe, Loader2, Apple, Chrome } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type AuthStep = "email" | "email_otp" | "register" | "phone_otp" | "login_password";
+type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -32,27 +32,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    try {
-      // In a real app, check if email exists. For now, assume user wants to login or register.
-      if (isLoginMode) {
-        setStep("login_password");
-      } else {
-        // Start registration - send email OTP
-        await authApi.register({
-          email,
-          first_name: "Temp",
-          last_name: "Temp",
-          phone_number: "Temp",
-          country_of_residence: "NG",
-          password: "TempPassword123!",
-        });
-        setStep("email_otp");
-      }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Something went wrong");
-    } finally {
-      setIsLoading(false);
+    if (isLoginMode) {
+      setStep("login_password");
+    } else {
+      setStep("register_form");
     }
   };
 
@@ -80,7 +63,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       await authApi.verifyEmail(email, otp);
       setOtp("");
-      setStep("register");
+      // Verification successful, now verify phone
+      await authApi.sendPhoneOTP(email);
+      setStep("phone_otp");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Invalid OTP");
     } finally {
@@ -92,7 +77,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Complete registration data
       await authApi.register({
         email,
         first_name: firstName,
@@ -101,9 +85,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         country_of_residence: country,
         password: password,
       });
-      // Registration successful, now verify phone
-      await authApi.sendPhoneOTP(email);
-      setStep("phone_otp");
+      setStep("email_otp");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Registration failed");
     } finally {
@@ -145,7 +127,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   required 
-                  className="pl-10"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
@@ -198,12 +180,87 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                   required 
-                  className="pl-10"
+                  className="pl-10 h-12"
                 />
               </div>
             </div>
             <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Log In"}
+            </Button>
+            <button 
+              type="button" 
+              onClick={() => setStep("email")} 
+              className="w-full text-center text-xs text-carry-muted font-bold hover:text-carry-light transition-colors"
+            >
+              Back to email
+            </button>
+          </form>
+        );
+
+      case "register_form":
+        return (
+          <form onSubmit={handleRegistration} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">First Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="pl-10 h-12" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Last Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required className="pl-10 h-12" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="reg-phone" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Phone Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input id="reg-phone" type="tel" placeholder="+234..." value={phone} onChange={(e) => setPhone(e.target.value)} required className="pl-10 h-12" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Country of Residence</Label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <select 
+                  id="country" 
+                  value={country} 
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="flex h-12 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+                >
+                  <option value="NG">Nigeria</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reg-password" title="Password" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Create Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input 
+                  id="reg-password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                  className="pl-10 h-12"
+                />
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Create Account"}
             </Button>
             <button 
               type="button" 
@@ -241,74 +298,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </form>
         );
 
-      case "register":
-        return (
-          <form onSubmit={handleRegistration} className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">First Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required className="pl-10" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Last Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required className="pl-10" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="reg-phone" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input id="reg-phone" type="tel" placeholder="+234..." value={phone} onChange={(e) => setPhone(e.target.value)} required className="pl-10" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="country" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Country of Residence</Label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select 
-                  id="country" 
-                  value={country} 
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
-                >
-                  <option value="NG">Nigeria</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="US">United States</option>
-                  <option value="CA">Canada</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="reg-password" title="Password" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Create Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input 
-                  id="reg-password" 
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required 
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Create Account"}
-            </Button>
-          </form>
-        );
-
       case "phone_otp":
         return (
           <form onSubmit={handlePhoneOTP} className="space-y-4">
@@ -342,7 +331,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[420px] p-8 border-none bg-white rounded-sm">
+      <DialogContent className="sm:max-w-[420px] p-8 border-none bg-white rounded-sm text-carry-darker">
         <DialogHeader className="mb-6">
           <DialogTitle className="text-2xl font-bold text-carry-darker text-center">
             {isLoginMode ? "Welcome Back" : "Create Your Account"}

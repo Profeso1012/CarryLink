@@ -11,6 +11,16 @@ import KYCPage from "./pages/account/KYCPage";
 import PostTrip from "./pages/account/PostTrip";
 import SendPackage from "./pages/account/SendPackage";
 import MyMatches from "./pages/account/MyMatches";
+import MyShipments from "./pages/account/MyShipments";
+import MyTrips from "./pages/account/MyTrips";
+import Payments from "./pages/account/Payments";
+import WalletPage from "./pages/account/WalletPage";
+import Messages from "./pages/account/Messages";
+import Notifications from "./pages/account/Notifications";
+import Reviews from "./pages/account/Reviews";
+import Disputes from "./pages/account/Disputes";
+import Settings from "./pages/account/Settings";
+import BookingDetail from "./pages/account/BookingDetail";
 import VerifyEmail from "./pages/VerifyEmail";
 import NotFound from "./pages/NotFound";
 import Header from "@/components/layout/Header";
@@ -67,15 +77,15 @@ const App = () => (
           <Route path="/browse/listings" element={<PlaceholderPage title="Browse Listings" />} />
           <Route path="/browse/shipments" element={<PlaceholderPage title="Browse Shipments" />} />
 
-          {/* Account Routes placeholders */}
+          {/* Account Routes */}
           <Route path="/account/my-shipments" element={
             <ProtectedRoute>
-              <PlaceholderPage title="My Shipments" sidebar />
+              <MyShipments />
             </ProtectedRoute>
           } />
           <Route path="/account/my-trips" element={
             <ProtectedRoute>
-              <PlaceholderPage title="My Trips" sidebar />
+              <MyTrips />
             </ProtectedRoute>
           } />
           <Route path="/account/post-trip" element={
@@ -95,12 +105,12 @@ const App = () => (
           } />
           <Route path="/account/payments" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Payments" sidebar />
+              <Payments />
             </ProtectedRoute>
           } />
           <Route path="/account/wallet" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Wallet" sidebar />
+              <WalletPage />
             </ProtectedRoute>
           } />
           <Route path="/account/kyc" element={
@@ -110,27 +120,32 @@ const App = () => (
           } />
           <Route path="/account/messages" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Messages" sidebar />
+              <Messages />
             </ProtectedRoute>
           } />
           <Route path="/account/notifications" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Notifications" sidebar />
+              <Notifications />
             </ProtectedRoute>
           } />
           <Route path="/account/reviews" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Reviews" sidebar />
+              <Reviews />
             </ProtectedRoute>
           } />
           <Route path="/account/disputes" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Disputes" sidebar />
+              <Disputes />
+            </ProtectedRoute>
+          } />
+          <Route path="/account/booking/:id" element={
+            <ProtectedRoute>
+              <BookingDetail />
             </ProtectedRoute>
           } />
           <Route path="/account/settings" element={
             <ProtectedRoute>
-              <PlaceholderPage title="Settings" sidebar />
+              <Settings />
             </ProtectedRoute>
           } />
 

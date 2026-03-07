@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { 
-  Package, 
-  MapPin, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  TrendingUp, 
-  Wallet, 
-  ShieldCheck, 
+import {
+  Package,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
+  Wallet,
+  ShieldCheck,
   ArrowRight,
   MoreVertical,
   Plus,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import AccountLayout from "@/components/layout/AccountLayout";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth-store";
 
 // Mock data for the dashboard
 const recentShipments = [
@@ -49,13 +50,6 @@ const recentShipments = [
   }
 ];
 
-const stats = [
-  { label: "Active Shipments", value: "3", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
-  { label: "Total Deliveries", value: "24", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50" },
-  { label: "Wallet Balance", value: "$420.00", icon: Wallet, color: "text-purple-500", bg: "bg-purple-50" },
-  { label: "Trust Score", value: "98/100", icon: ShieldCheck, color: "text-cyan-500", bg: "bg-cyan-50" }
-];
-
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     in_transit: "bg-blue-100 text-blue-700",
@@ -63,7 +57,7 @@ function StatusBadge({ status }: { status: string }) {
     pending_payment: "bg-orange-100 text-orange-700",
     disputed: "bg-red-100 text-red-700"
   };
-  
+
   const labels: Record<string, string> = {
     in_transit: "In Transit",
     delivered: "Delivered",
@@ -80,10 +74,23 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
+  const { user } = useAuthStore();
+
+  const stats = [
+    { label: "Active Shipments", value: "3", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
+    { label: "Total Deliveries", value: "24", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50" },
+    { label: "Wallet Balance", value: "$420.00", icon: Wallet, color: "text-purple-500", bg: "bg-purple-50" },
+    { label: "Trust Score", value: "98/100", icon: ShieldCheck, color: "text-cyan-500", bg: "bg-cyan-50" }
+  ];
 
   return (
     <AccountLayout>
       <div className="space-y-8">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-2xl font-bold text-carry-darker">Welcome back, {user?.first_name}!</h2>
+          <p className="text-gray-500 text-sm tracking-wide uppercase font-bold tracking-widest text-[10px]">Your Dashboard Overview</p>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
@@ -100,20 +107,28 @@ export default function Dashboard() {
         </div>
 
         {/* KYC Banner if not verified */}
-        <div className="bg-carry-darker rounded-md p-6 flex flex-col md:flex-row items-center justify-between gap-6 border-l-[6px] border-carry-light">
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light shrink-0">
-              <ShieldCheck className="w-7 h-7" />
+        {user?.kyc_status !== "approved" && (
+          <div className="bg-carry-darker rounded-md p-6 flex flex-col md:flex-row items-center justify-between gap-6 border-l-[6px] border-carry-light">
+            <div className="flex items-center gap-5">
+              <div className="w-12 h-12 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light shrink-0">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-white font-bold text-lg">
+                  {user?.kyc_status === "pending" ? "Verification in Progress" : "Identity Verification Required"}
+                </h3>
+                <p className="text-white/60 text-sm max-w-lg">
+                  {user?.kyc_status === "pending"
+                    ? "Your documents are being reviewed. We'll notify you once the verification is complete."
+                    : "To ensure safety and trust within our community, all travelers must complete a one-time identity verification before they can post trips."}
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <h3 className="text-white font-bold text-lg">Identity Verification Required</h3>
-              <p className="text-white/60 text-sm max-w-lg">To ensure safety and trust within our community, all travelers must complete a one-time identity verification before they can post trips.</p>
-            </div>
+            <Link to="/account/kyc" className="bg-carry-light text-white px-6 py-2.5 rounded-sm font-bold text-sm hover:bg-carry-light/90 transition-all whitespace-nowrap">
+              {user?.kyc_status === "pending" ? "Check Status" : "Verify Identity"}
+            </Link>
           </div>
-          <Link to="/account/kyc" className="bg-carry-light text-white px-6 py-2.5 rounded-sm font-bold text-sm hover:bg-carry-light/90 transition-all whitespace-nowrap">
-            Verify Identity
-          </Link>
-        </div>
+        )}
 
         {/* Shipments Section */}
         <div className="bg-white rounded-md shadow-sm border border-carry-light/10 overflow-hidden">

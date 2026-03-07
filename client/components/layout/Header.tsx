@@ -1,17 +1,27 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Menu, X, Search, Bell } from "lucide-react";
+import { Menu, X, Search, Bell, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AuthModal from "../auth/AuthModal";
+import { useAuthStore } from "@/store/auth-store";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const location = useLocation();
 
-  // Mock authentication state for now
-  const isAuthenticated = false; 
+  const { isAuthenticated, user, logout } = useAuthStore();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -113,26 +123,37 @@ export default function Header() {
             </NavLink>
             
             {isAuthenticated ? (
-              <>
-                <NavLink 
-                  to="/account/dashboard" 
-                  className={({ isActive }) => cn(
-                    "relative flex items-center px-[22px] text-white/90 text-[15px] font-normal no-underline whitespace-nowrap transition-colors group hover:text-carry-light",
-                    isActive && "text-carry-light"
-                  )}
-                >
-                  My Account
-                  <div className={cn(
-                    "absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light transition-transform origin-left",
-                    location.pathname.startsWith("/account") ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
-                  )}></div>
-                </NavLink>
+              <div className="flex items-stretch">
                 <button className="relative flex items-center px-[22px] text-white/90 transition-colors group hover:text-carry-light">
                   <Bell className="w-5 h-5" />
                 </button>
-              </>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="relative flex items-center px-[22px] text-white/90 text-[15px] font-normal no-underline whitespace-nowrap transition-colors group hover:text-carry-light">
+                    <div className="w-8 h-8 rounded-full bg-carry-light/20 flex items-center justify-center mr-2">
+                      <User className="w-4 h-4 text-carry-light" />
+                    </div>
+                    <span className="hidden lg:inline">{user?.first_name}</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-white border-none shadow-xl rounded-sm">
+                    <DropdownMenuLabel className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-gray-100" />
+                    <DropdownMenuItem asChild>
+                      <Link to="/account/dashboard" className="cursor-pointer font-bold text-carry-darker">Dashboard</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/account/settings" className="cursor-pointer font-bold text-carry-darker">Settings</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-gray-100" />
+                    <DropdownMenuItem onClick={logout} className="cursor-pointer text-red-500 font-bold">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
-              <button 
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
                 className="nav-signup relative flex items-center px-[22px] bg-carry-light/20 text-white text-[15px] font-normal no-underline whitespace-nowrap transition-all hover:bg-carry-light/30"
               >
                 Sign Up
@@ -140,7 +161,7 @@ export default function Header() {
               </button>
             )}
           </nav>
-          
+
           <button className="search-btn relative flex items-center gap-2 px-6 pr-[72px] text-white/90 bg-transparent border-l border-white/20 cursor-pointer font-normal text-[15px] whitespace-nowrap group hover:text-carry-light">
             <Search className="w-5 h-5" />
             <span className="hidden lg:inline">Search</span>
@@ -148,6 +169,7 @@ export default function Header() {
           </button>
         </div>
       </div>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </header>
   );
 }

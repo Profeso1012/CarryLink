@@ -403,53 +403,37 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* Custom backdrop with blur effect matching landingpage.html */}
-      <div 
-        className={cn(
-          "fixed inset-0 z-[9000] flex items-center justify-center transition-opacity duration-300",
-          isOpen ? "opacity-100 pointer-events-all" : "opacity-0 pointer-events-none"
-        )}
-        style={{
-          background: "rgba(4, 32, 48, 0.48)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)"
-        }}
+      <DialogContent
+        overlayClassName="bg-[#042030]/48 backdrop-blur-[12px] z-[10000]"
+        className="sm:max-w-[420px] p-0 border-none bg-white rounded-[24px] text-carry-darker shadow-[0_24px_64px_rgba(4,32,48,0.24)] overflow-hidden z-[10001]"
       >
-        <DialogContent 
-          className="sm:max-w-[420px] p-0 border-none bg-white rounded-2xl text-carry-darker shadow-2xl transform transition-all duration-300"
-          style={{
-            transform: isOpen ? "translateY(0) scale(1)" : "translateY(18px) scale(0.97)",
-            boxShadow: "0 24px 64px rgba(4, 32, 48, 0.28)"
-          }}
-        >
-          {/* Security shield indicator */}
-          <div className="flex items-center justify-center gap-2 text-xs text-[#2d7a96] mt-6 mb-6">
-            <Shield className="w-3 h-3 text-[#23bcf2] stroke-2" />
-            Your information is protected
-          </div>
-          
-          <div className="px-9 pb-8">
-            <DialogHeader className="mb-7">
-              <DialogTitle className="text-[22px] font-bold text-[#0d1a1f] text-center mb-1">
-                {step === "login_password" ? "Welcome back" : 
-                 step === "email_otp" ? "Verify your email" :
-                 step === "phone_otp" ? "Verify your phone" :
-                 step === "register_form" ? "Complete your profile" :
-                 isLoginMode ? "Sign in to CarryLink" : "Join CarryLink"}
-              </DialogTitle>
-              <p className="text-center text-[#757575] text-[13px] leading-relaxed">
-                {step === "login_password" ? "Enter your password to continue" :
-                 step === "email_otp" ? `Please enter the 4-digit code sent to ${email}` :
-                 step === "phone_otp" ? "Enter the SMS code to complete verification" :
-                 step === "register_form" ? "Tell us a bit about yourself" :
-                 isLoginMode ? "Welcome back to CarryLink" : "Ship smarter or earn from your spare luggage. Enter your email to get started."}
-              </p>
-            </DialogHeader>
-            
-            {renderStep()}
-          </div>
-        </DialogContent>
-      </div>
+        {/* Security shield indicator */}
+        <div className="flex items-center justify-center gap-2 text-xs text-[#2d7a96] mt-8 mb-4">
+          <Shield className="w-3.5 h-3.5 text-[#23bcf2] stroke-2" />
+          Your information is protected
+        </div>
+
+        <div className="px-9 pb-8">
+          <DialogHeader className="mb-7">
+            <DialogTitle className="text-[22px] font-bold text-[#0d1a1f] text-center mb-1">
+              {step === "login_password" ? "Welcome back" :
+               step === "email_otp" ? "Verify your email" :
+               step === "phone_otp" ? "Verify your phone" :
+               step === "register_form" ? "Complete your profile" :
+               isLoginMode ? "Sign in to CarryLink" : "Join CarryLink"}
+            </DialogTitle>
+            <p className="text-center text-[#757575] text-[13px] leading-relaxed">
+              {step === "login_password" ? "Enter your password to continue" :
+               step === "email_otp" ? `Please enter the code sent to ${email}` :
+               step === "phone_otp" ? "Enter the SMS code to complete verification" :
+               step === "register_form" ? "Tell us a bit about yourself" :
+               isLoginMode ? "Welcome back to CarryLink" : "Ship smarter or earn from your spare luggage. Enter your email to get started."}
+            </p>
+          </DialogHeader>
+
+          {renderStep()}
+        </div>
+      </DialogContent>
     </Dialog>
   );
 }

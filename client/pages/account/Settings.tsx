@@ -25,14 +25,37 @@ import { useAuthStore } from "@/store/auth-store";
 
 export default function Settings() {
   const { user, setUser } = useAuthStore();
-  const [firstName, setFirstName] = useState(user?.first_name || "");
-  const [lastName, setLastName] = useState(user?.last_name || "");
-  const [phone, setPhone] = useState(user?.phone_number || "");
+
+  // Use me query to get latest data and pre-populate fields
+  const { data: meData, isLoading: isMeLoading } = useQuery({
+    queryKey: ["user-me"],
+    queryFn: () => apiClient.get("/users/me").then(res => res.data.data),
+    onSuccess: (data) => {
+      setFirstName(data.first_name || "");
+      setLastName(data.last_name || "");
+      setPhone(data.phone_number || "");
+    }
+  });
+
+  const displayUser = meData || user;
+  const [firstName, setFirstName] = useState(displayUser?.first_name || "");
+  const [lastName, setLastName] = useState(displayUser?.last_name || "");
+  const [phone, setPhone] = useState(displayUser?.phone_number || "");
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Update local state when meData arrives
+  useEffect(() => {
+    if (meData) {
+      setFirstName(meData.first_name || "");
+      setLastName(meData.last_name || "");
+      setPhone(meData.phone_number || "");
+    }
+  }, [meData]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: any) => apiClient.put("/users/me", data),
     onSuccess: (data) => {
-      setUser(data.data.user);
+      setUser(data.data.user || data.data.data);
       toast.success("Profile updated successfully!");
     },
     onError: (error: any) => {
@@ -48,6 +71,52 @@ export default function Settings() {
       phone_number: phone
     });
   };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      // 1. Get signed upload params
+      const { data: { data: uploadParams } } = await apiClient.post("/users/me/avatar");
+
+      // 2. Upload to Cloudinary
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", uploadParams.api_key);
+      formData.append("timestamp", uploadParams.timestamp.toString());
+      formData.append("signature", uploadParams.signature);
+      formData.append("public_id", uploadParams.public_id);
+
+      const cloudResponse = await fetch(uploadParams.upload_url, {
+        method: "POST",
+        body: formData
+      });
+      const cloudData = await cloudResponse.json();
+
+      // 3. Update user profile with new avatar URL
+      await updateProfileMutation.mutateAsync({
+        avatar_url: cloudData.secure_url
+      });
+
+      toast.success("Avatar updated successfully!");
+    } catch (error: any) {
+      toast.error("Failed to upload avatar");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  if (isMeLoading && !user) {
+    return (
+      <AccountLayout>
+        <div className="flex items-center justify-center p-20">
+          <Loader2 className="w-10 h-10 animate-spin text-carry-light" />
+        </div>
+      </AccountLayout>
+    );
+  }
 
   return (
     <AccountLayout>
@@ -89,21 +158,35 @@ export default function Settings() {
                 <div className="flex flex-col sm:flex-row items-center gap-6 pb-8 border-b border-gray-50">
                   <div className="relative group">
                     <div className="w-24 h-24 rounded-full bg-carry-bg border-4 border-white shadow-sm flex items-center justify-center text-carry-muted overflow-hidden">
-                      {user?.profile?.avatar_url ? (
-                        <img src={user.profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      {isUploading ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-carry-light" />
+                      ) : displayUser?.profile?.avatar_url || displayUser?.avatar_url ? (
+                        <img src={displayUser.profile?.avatar_url || displayUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
                         <User className="w-10 h-10" />
                       )}
                     </div>
-                    <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-carry-light text-white flex items-center justify-center border-2 border-white shadow-md hover:bg-carry-dark transition-all">
+                    <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-carry-light text-white flex items-center justify-center border-2 border-white shadow-md hover:bg-carry-dark transition-all cursor-pointer">
                       <Camera className="w-4 h-4" />
-                    </button>
+                      <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isUploading} />
+                    </label>
                   </div>
                   <div className="flex-1 text-center sm:text-left space-y-1">
-                    <h4 className="font-bold text-carry-darker text-base">{user?.first_name} {user?.last_name}</h4>
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">{user?.role} Account • {user?.kyc_status === 'approved' ? 'Verified' : 'Unverified'}</p>
+                    <h4 className="font-bold text-carry-darker text-base">{displayUser?.first_name} {displayUser?.last_name}</h4>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">{displayUser?.role} Account • {displayUser?.kyc_status === 'approved' ? 'Verified' : 'Unverified'}</p>
+                    {displayUser?.trust_score !== undefined && (
+                      <div className="flex items-center gap-1.5 text-carry-light font-bold text-[11px] mt-1">
+                        <Shield className="w-3 h-3" />
+                        Trust Score: {displayUser.trust_score}/100
+                      </div>
+                    )}
                   </div>
-                  <Button variant="outline" size="sm" className="font-bold text-xs uppercase tracking-widest h-9">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-bold text-xs uppercase tracking-widest h-9"
+                    onClick={() => updateProfileMutation.mutate({ avatar_url: null })}
+                  >
                     Remove Photo
                   </Button>
                 </div>
@@ -124,7 +207,7 @@ export default function Settings() {
                     <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input value={user?.email} disabled className="pl-10 bg-gray-50 cursor-not-allowed opacity-60" />
+                      <Input value={displayUser?.email} disabled className="pl-10 bg-gray-50 cursor-not-allowed opacity-60" />
                     </div>
                     <p className="text-[10px] text-gray-400 font-medium">Email cannot be changed once verified.</p>
                   </div>
@@ -138,8 +221,8 @@ export default function Settings() {
                   </div>
 
                   <div className="pt-4">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       disabled={updateProfileMutation.isPending}
                       className="bg-carry-light text-white font-bold h-11 px-8 hover:bg-carry-light/90 transition-all shadow-md"
                     >

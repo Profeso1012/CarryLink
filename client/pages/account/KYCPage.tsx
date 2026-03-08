@@ -171,10 +171,19 @@ export default function KYCPage() {
 
   return (
     <AccountLayout>
-      <div className="max-w-3xl mx-auto space-y-8">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-[13px] text-gray-400">
+          <Link to="/" className="hover:text-carry-light transition-colors">Home</Link>
+          <ChevronRight className="w-3 h-3" />
+          <Link to="/account/dashboard" className="hover:text-carry-light transition-colors">Account</Link>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-carry-darker font-medium">KYC Verification</span>
+        </div>
+
         <div>
-          <h2 className="text-2xl font-bold text-carry-darker">KYC Identity Verification</h2>
-          <p className="text-gray-500">Verify your identity to unlock traveler features and build trust in the community.</p>
+          <h2 className="text-2xl font-bold text-carry-darker">Identity Verification</h2>
+          <p className="text-gray-500">Secure your account and unlock traveler features by verifying your ID.</p>
         </div>
 
         <Card className="border-none shadow-sm overflow-hidden">

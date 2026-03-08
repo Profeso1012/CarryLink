@@ -2,21 +2,24 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import AccountLayout from "@/components/layout/AccountLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   Package, 
   MapPin, 
   Calendar, 
-  Weight, 
-  DollarSign, 
   Search, 
   Filter, 
   ArrowRight, 
   Loader2, 
   MoreVertical,
-  Plus
+  Plus,
+  Clock,
+  Truck,
+  PackageCheck,
+  AlertCircle,
+  List,
+  ChevronRight,
+  Users,
+  Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -46,10 +49,19 @@ function StatusBadge({ status }: { status: string }) {
     disputed: "bg-red-100 text-red-700"
   };
 
+  const labels: Record<string, string> = {
+    open: "Open Request",
+    pending_payment: "Payment Required",
+    in_transit: "In Transit",
+    delivered: "Delivered",
+    cancelled: "Cancelled",
+    disputed: "Disputed"
+  };
+
   return (
-    <Badge className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border-none", styles[status] || "bg-gray-100 text-gray-700")}>
-      {status.replace("_", " ")}
-    </Badge>
+    <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider whitespace-nowrap", styles[status] || "bg-gray-100 text-gray-600")}>
+      {labels[status] || status.replace("_", " ")}
+    </span>
   );
 }
 
@@ -57,63 +69,104 @@ export default function MyShipments() {
   const [activeTab, setActiveTab] = useState("all");
 
   const { data: shipments, isLoading } = useQuery({
-    queryKey: ["my-shipments", activeTab],
+    queryKey: ["my-shipments"],
     queryFn: async () => {
       const response = await apiClient.get("/shipments/mine");
       return response.data.data as Shipment[];
     }
   });
 
-  const filteredShipments = shipments?.filter(s => activeTab === "all" || s.status === activeTab) || [];
+  const { data: listings } = useQuery({
+    queryKey: ["verified-listings"],
+    queryFn: async () => {
+      const response = await apiClient.get("/travel-listings?limit=4");
+      return response.data.data;
+    }
+  });
+
+  const filteredShipments = shipments?.filter(s => {
+    if (activeTab === "all") return true;
+    if (activeTab === "pending") return s.status === "open" || s.status === "pending_payment";
+    return s.status === activeTab;
+  }) || [];
+
+  const counts = {
+    all: shipments?.length || 0,
+    pending: shipments?.filter(s => s.status === "open" || s.status === "pending_payment").length || 0,
+    in_transit: shipments?.filter(s => s.status === "in_transit").length || 0,
+    delivered: shipments?.filter(s => s.status === "delivered").length || 0,
+    disputed: shipments?.filter(s => s.status === "disputed").length || 0,
+  };
 
   return (
     <AccountLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-carry-darker">My Shipments</h2>
-            <p className="text-gray-500">Track and manage your outgoing delivery requests.</p>
-          </div>
-          
-          <Link 
-            to="/account/send-package" 
-            className="bg-carry-light text-white px-6 py-2.5 rounded-sm font-bold text-sm flex items-center justify-center gap-2 hover:bg-carry-light/90 transition-all shadow-sm self-start"
-          >
-            <Plus className="w-4 h-4" />
-            New Shipment
-          </Link>
+      <div className="space-y-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-[13px] text-gray-400">
+          <Link to="/" className="hover:text-carry-light transition-colors">Home</Link>
+          <ChevronRight className="w-3 h-3" />
+          <Link to="/account/dashboard" className="hover:text-carry-light transition-colors">Account</Link>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-carry-darker font-medium">My Shipments</span>
         </div>
 
+        {/* Controls Section */}
         <div className="bg-white rounded-sm shadow-sm border border-carry-light/10 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-6 border-b border-gray-100 w-full lg:w-auto">
-              {["all", "open", "in_transit", "delivered"].map((tab) => (
+          <div className="p-6 border-b border-gray-100 flex flex-col gap-6">
+            <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+              {[
+                { id: "all", label: "All Shipments", icon: List },
+                { id: "pending", label: "Pending", icon: Clock, count: counts.pending },
+                { id: "in_transit", label: "In Transit", icon: Truck },
+                { id: "delivered", label: "Delivered", icon: PackageCheck },
+                { id: "disputed", label: "Disputed", icon: AlertCircle },
+              ].map((tab) => (
                 <button 
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "pb-4 text-[11px] font-bold uppercase tracking-widest transition-all relative whitespace-nowrap",
-                    activeTab === tab ? "text-carry-light" : "text-gray-400 hover:text-gray-600"
+                    "pb-4 text-[11px] font-bold uppercase tracking-widest transition-all relative whitespace-nowrap flex items-center gap-2",
+                    activeTab === tab.id ? "text-carry-light" : "text-gray-400 hover:text-gray-600"
                   )}
                 >
-                  {tab === "all" ? "All Requests" : tab.replace("_", " ")}
-                  {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light"></div>}
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                  {tab.count !== undefined && tab.count > 0 && (
+                    <span className="bg-carry-light/10 text-carry-light px-1.5 py-0.5 rounded-full text-[9px] min-w-[16px] text-center">
+                      {tab.count}
+                    </span>
+                  )}
+                  {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light"></div>}
                 </button>
               ))}
             </div>
             
-            <div className="flex items-center gap-3 w-full lg:w-auto">
-              <div className="relative flex-1 lg:flex-none">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder="Filter by ID or title..." 
-                  className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-sm text-sm focus:outline-none focus:border-carry-light w-full lg:w-64"
-                />
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              <div className="flex-1 flex items-stretch border border-gray-200 rounded-sm overflow-hidden">
+                <select className="bg-gray-50 px-3 py-2 text-[13px] font-medium text-carry-darker border-r border-gray-200 outline-none">
+                  <option>Shipment</option>
+                  <option>Traveler</option>
+                  <option>Corridor</option>
+                </select>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Tracking ID, traveler name or route…" 
+                    className="w-full pl-10 pr-4 py-2 bg-white text-sm outline-none"
+                  />
+                </div>
               </div>
-              <button className="p-2 border border-gray-200 rounded-sm text-gray-400 hover:text-carry-light hover:border-carry-light transition-all">
-                <Filter className="w-4 h-4" />
+              <button className="bg-carry-light text-white px-6 py-2 rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-carry-light/90 transition-all flex items-center justify-center gap-2">
+                <Search className="w-3.5 h-3.5" />
+                Search
               </button>
+              <select className="bg-white border border-gray-200 px-3 py-2 rounded-sm text-[13px] font-medium text-carry-darker outline-none">
+                <option>All time</option>
+                <option>Last 30 days</option>
+                <option>Last 6 months</option>
+                <option>2025</option>
+              </select>
             </div>
           </div>
 
@@ -126,12 +179,11 @@ export default function MyShipments() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 text-[10px] font-bold uppercase tracking-widest text-carry-muted border-b border-gray-100">
-                    <th className="px-6 py-4">Package</th>
-                    <th className="px-6 py-4">Route</th>
-                    <th className="px-6 py-4">Timeline</th>
-                    <th className="px-6 py-4">Payment</th>
+                    <th className="px-6 py-4">Package Details</th>
+                    <th className="px-6 py-4">Route / Created</th>
+                    <th className="px-6 py-4">Agreed Price</th>
                     <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right"></th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -142,8 +194,8 @@ export default function MyShipments() {
                           <div className="w-10 h-10 rounded-sm bg-carry-bg flex items-center justify-center text-carry-light shrink-0">
                             <Package className="w-5 h-5" />
                           </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-carry-darker text-[14px]">{shipment.title}</span>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="font-bold text-carry-darker text-[14px] truncate">{shipment.title}</span>
                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">ID: {shipment.id.slice(0, 8)}</span>
                           </div>
                         </div>
@@ -155,18 +207,12 @@ export default function MyShipments() {
                             <ArrowRight className="w-3 h-3 text-gray-300" />
                             {shipment.destination_city}
                           </div>
-                          <span className="text-[11px] text-gray-400 font-medium">{shipment.origin_country} → {shipment.destination_country}</span>
+                          <span className="text-[10px] text-gray-400 font-bold uppercase">{new Date(shipment.created_at).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-carry-darker">{new Date(shipment.created_at).toLocaleDateString()}</span>
-                          <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Created On</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-bold text-carry-darker">{shipment.offered_price} {shipment.currency}</span>
+                          <span className="text-[14px] font-bold text-carry-darker">{shipment.offered_price} {shipment.currency}</span>
                           <span className="text-[10px] text-gray-400 uppercase font-bold tracking-tight">Escrow Locked</span>
                         </div>
                       </td>
@@ -183,16 +229,78 @@ export default function MyShipments() {
                 </tbody>
               </table>
             ) : (
-              <div className="p-20 flex flex-col items-center text-center space-y-4 bg-white">
-                <div className="w-16 h-16 rounded-full bg-carry-bg flex items-center justify-center text-carry-muted">
+              /* Empty state matching board.html */
+              <div className="p-20 flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-carry-bg flex items-center justify-center text-carry-muted mb-6">
                   <Package className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-carry-darker">No shipments found</h3>
-                <p className="text-gray-500 max-w-sm">You haven't created any shipment requests yet. Start by requesting a delivery for your package.</p>
-                <Link to="/account/send-package" className="text-carry-light font-bold hover:underline uppercase tracking-widest text-xs">
-                  Create First Shipment Request
-                </Link>
+                <h3 className="text-xl font-bold text-carry-darker mb-2">No shipments yet</h3>
+                <p className="text-gray-500 max-w-sm mb-8 leading-relaxed">
+                  You haven't sent anything yet. Post your first item request and get matched with a verified traveler heading your way — for up to 68% less than DHL.
+                </p>
+                <div className="flex items-center gap-4">
+                  <button className="px-6 py-2.5 rounded-sm border border-carry-light/20 text-carry-light font-bold text-xs uppercase tracking-widest hover:bg-carry-light/5 transition-all flex items-center gap-2">
+                    <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                    Switch Account
+                  </button>
+                  <Link to="/account/send-package" className="px-6 py-2.5 rounded-sm bg-carry-light text-white font-bold text-xs uppercase tracking-widest hover:bg-[#1aa6d4] transition-all flex items-center gap-2 shadow-sm">
+                    <Plus className="w-3.5 h-3.5" />
+                    Send a Package
+                  </Link>
+                </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Verified Travelers Section matching board.html */}
+        <div className="bg-white rounded-sm shadow-sm border border-carry-light/10 p-8">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-carry-muted flex items-center gap-2">
+              <Users className="w-4 h-4 text-carry-light" />
+              Verified Travelers on Your Routes
+            </h3>
+            <Link to="/browse/listings" className="text-[11px] font-bold text-carry-light hover:underline uppercase tracking-widest flex items-center gap-1.5">
+              Browse all travelers
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {listings && listings.length > 0 ? listings.map((listing: any) => (
+              <div key={listing.id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
+                <div className="relative h-40">
+                  <img 
+                    src={listing.user?.avatar_url || `https://images.unsplash.com/photo-${listing.id.length > 10 ? '1573496359142-b8d87734a5a2' : '1560250097-0b93528c311a'}?w=400&h=300&fit=crop&q=80`} 
+                    alt={listing.user?.first_name}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute top-3 right-3 bg-carry-light text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm">Verified</span>
+                </div>
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="font-bold text-carry-darker text-[15px] mb-2">{listing.user?.first_name} {listing.user?.last_name}</div>
+                  <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
+                    <MapPin className="w-3 h-3" />
+                    {listing.origin_city} &rarr; {listing.destination_city}
+                  </div>
+                  <hr className="border-gray-100 mb-4" />
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-bold">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                    <div className="text-carry-light font-bold text-[13px]">${listing.price_per_kg || 10}/kg</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-500 text-[11px] font-bold mt-auto">
+                    <Star className="w-3 h-3 fill-current" />
+                    4.9 · 38 deliveries
+                  </div>
+                </div>
+              </div>
+            )) : (
+              [1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-gray-50 h-64 rounded-sm animate-pulse"></div>
+              ))
             )}
           </div>
         </div>

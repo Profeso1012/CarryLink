@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ShieldCheck, ShieldAlert, Clock, Loader2, Globe, FileCheck, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShieldCheck, ShieldAlert, Clock, Loader2, Globe, FileCheck, CheckCircle2, ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,9 @@ export default function KYCPage() {
   const renderStatus = () => {
     switch (kycStatus) {
       case "approved":
+        const expiresAt = statusData?.data?.expires_at;
+        const daysLeft = expiresAt ? Math.ceil((new Date(expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null;
+
         return (
           <div className="flex flex-col items-center text-center p-8 space-y-4">
             <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-green-500">
@@ -61,11 +65,17 @@ export default function KYCPage() {
             </p>
             <div className="bg-green-50 border border-green-100 rounded-sm p-4 w-full flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <p className="text-xs font-bold text-green-800 uppercase tracking-widest">Verification Badge Active</p>
-                <p className="text-xs text-green-700">Expires on: {statusData?.data?.expires_at ? new Date(statusData.data.expires_at).toLocaleDateString() : "Never"}</p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-xs text-green-700">Expires on: {expiresAt ? new Date(expiresAt).toLocaleDateString() : "Never"}</p>
+                  {daysLeft !== null && daysLeft > 0 && (
+                    <p className="text-xs font-bold text-green-800">{daysLeft} days left</p>
+                  )}
+                </div>
               </div>
             </div>
+            <p className="text-xs text-gray-400 mt-2 italic">Verification is valid for 2 years from approval date.</p>
           </div>
         );
 

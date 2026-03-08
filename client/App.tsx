@@ -1,3 +1,4 @@
+import React from "react";
 import "./global.css";
 
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +8,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Index from "./pages/Index";
 import ApiTest from "./pages/ApiTest";
+import BrowseListings from "./pages/BrowseListings";
+import BrowseShipments from "./pages/BrowseShipments";
+import ListingDetail from "./pages/ListingDetail";
+import ShipmentDetail from "./pages/ShipmentDetail";
+import PublicProfile from "./pages/PublicProfile";
 import Dashboard from "./pages/Dashboard";
 import KYCPage from "./pages/account/KYCPage";
 import PostTrip from "./pages/account/PostTrip";
@@ -74,10 +80,13 @@ const App = () => (
             </ProtectedRoute>
           } />
 
-          {/* Public Routes placeholders */}
+          {/* Public Browse Routes */}
           <Route path="/how-it-works" element={<PlaceholderPage title="How It Works" />} />
-          <Route path="/browse/listings" element={<PlaceholderPage title="Browse Listings" />} />
-          <Route path="/browse/shipments" element={<PlaceholderPage title="Browse Shipments" />} />
+          <Route path="/browse/listings" element={<BrowseListings />} />
+          <Route path="/browse/shipments" element={<BrowseShipments />} />
+          <Route path="/listings/:id" element={<ListingDetail />} />
+          <Route path="/shipments/:id" element={<ShipmentDetail />} />
+          <Route path="/profile/:id" element={<PublicProfile />} />
 
           {/* Account Routes */}
           <Route path="/account/my-shipments" element={

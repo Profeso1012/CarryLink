@@ -160,8 +160,8 @@ export default function Settings() {
                     <div className="w-24 h-24 rounded-full bg-carry-bg border-4 border-white shadow-sm flex items-center justify-center text-carry-muted overflow-hidden">
                       {isUploading ? (
                         <Loader2 className="w-8 h-8 animate-spin text-carry-light" />
-                      ) : displayUser?.profile?.avatar_url || displayUser?.avatar_url ? (
-                        <img src={displayUser.profile?.avatar_url || displayUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : displayUser?.avatar_url ? (
+                        <img src={displayUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
                         <User className="w-10 h-10" />
                       )}

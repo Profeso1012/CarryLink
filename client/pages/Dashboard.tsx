@@ -67,7 +67,7 @@ export default function Dashboard() {
       { queryKey: ["recent-bookings"], queryFn: () => apiClient.get("/bookings?limit=5").then(res => res.data.data) },
       { queryKey: ["wallet-balance"], queryFn: () => apiClient.get("/wallet/balance").then(res => res.data.data) },
       { queryKey: ["unread-notifications"], queryFn: () => apiClient.get("/notifications?unread=true").then(res => res.data.data) },
-      { queryKey: ["active-listings"], queryFn: () => apiClient.get("/travel-listings?limit=4").then(res => res.data.data) }
+      { queryKey: ["active-listings"], queryFn: () => apiClient.get("/travel-listings?limit=4").then(res => res.data.data.listings) }
     ]
   });
 
@@ -255,15 +255,15 @@ export default function Dashboard() {
             {listings && listings.length > 0 ? listings.map((listing: any) => (
               <div key={listing.id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
                 <div className="relative h-40">
-                  <img 
-                    src={listing.user?.avatar_url || `https://images.unsplash.com/photo-${listing.id.length > 10 ? '1573496359142-b8d87734a5a2' : '1560250097-0b93528c311a'}?w=400&h=300&fit=crop&q=80`} 
-                    alt={listing.user?.first_name}
+                  <img
+                    src={listing.traveler?.avatar_url || `https://images.unsplash.com/photo-${listing.id.length > 10 ? '1573496359142-b8d87734a5a2' : '1560250097-0b93528c311a'}?w=400&h=300&fit=crop&q=80`}
+                    alt={listing.traveler?.display_name || listing.traveler?.first_name}
                     className="w-full h-full object-cover"
                   />
                   <span className="absolute top-3 right-3 bg-carry-light text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm">Verified</span>
                 </div>
                 <div className="p-5 flex flex-col flex-1">
-                  <div className="font-bold text-carry-darker text-[15px] mb-2">{listing.user?.first_name} {listing.user?.last_name}</div>
+                  <div className="font-bold text-carry-darker text-[15px] mb-2">{listing.traveler?.display_name || `${listing.traveler?.first_name} ${listing.traveler?.last_name}`}</div>
                   <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
                     <MapPin className="w-3 h-3" />
                     {listing.origin_city} &rarr; {listing.destination_city}

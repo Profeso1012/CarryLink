@@ -32,7 +32,7 @@ export default function PublicProfile() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["public-profile", id],
     queryFn: async () => {
-      const response = await apiClient.get(`/users/${id}/profile`);
+      const response = await apiClient.get(`/users/${id}`);
       return response.data.data;
     }
   });
@@ -93,8 +93,8 @@ export default function PublicProfile() {
             <div className="h-32 bg-carry-darker relative">
               <div className="absolute -bottom-12 left-8 p-1 bg-white rounded-full shadow-md">
                 <div className="w-24 h-24 rounded-full bg-carry-bg border-4 border-white flex items-center justify-center overflow-hidden">
-                  {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+                  {profile.avatar_url || profile.profile?.avatar_url ? (
+                    <img src={profile.avatar_url || profile.profile?.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
                   ) : (
                     <User className="w-12 h-12 text-carry-light" />
                   )}

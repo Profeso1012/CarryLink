@@ -1,8 +1,12 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
+const IS_TEST_MODE = import.meta.env.VITE_APP_ENV === "test";
 
 console.log("[Auth] API Client initialized with base URL:", API_BASE_URL);
+if (IS_TEST_MODE) {
+  console.log("[DEBUG] API Client in TEST mode - request/response logging enabled");
+}
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,6 +14,41 @@ export const apiClient = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+// Request logging for test mode
+apiClient.interceptors.request.use((config) => {
+  if (IS_TEST_MODE) {
+    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, {
+      params: config.params,
+      data: config.data,
+      headers: config.headers,
+    });
+  }
+  return config;
+});
+
+// Response logging for test mode
+apiClient.interceptors.response.use(
+  (response) => {
+    if (IS_TEST_MODE) {
+      console.log(`[API RESPONSE SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+        status: response.status,
+        data: response.data,
+      });
+    }
+    return response;
+  },
+  (error) => {
+    if (IS_TEST_MODE && error.config) {
+      console.error(`[API RESPONSE ERROR] ${error.config.method?.toUpperCase()} ${error.config.url}`, {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Flag and queue to handle concurrent refresh requests
 let isRefreshing = false;
@@ -29,9 +68,15 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor for attaching the token
+// Request interceptor for attaching the token and fixing URL slashes
 apiClient.interceptors.request.use(
   (config) => {
+    // If URL starts with a slash, remove it to ensure it's relative to baseURL
+    // This prevents axios from treating it as an absolute path from the root
+    if (config.url?.startsWith("/")) {
+      config.url = config.url.substring(1);
+    }
+
     const token = localStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

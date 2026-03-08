@@ -84,7 +84,7 @@ export default function MyShipments() {
     queryKey: ["verified-listings"],
     queryFn: async () => {
       const response = await apiClient.get("/travel-listings?limit=4");
-      return response.data.data;
+      return response.data.data.listings;
     }
   });
 

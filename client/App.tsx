@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import Index from "./pages/Index";
+import ApiTest from "./pages/ApiTest";
 import Dashboard from "./pages/Dashboard";
 import KYCPage from "./pages/account/KYCPage";
 import PostTrip from "./pages/account/PostTrip";
@@ -64,6 +65,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/api-test" element={<ApiTest />} />
 
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/account/dashboard" element={

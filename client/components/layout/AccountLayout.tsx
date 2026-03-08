@@ -22,6 +22,7 @@ import {
 import Header from "./Header";
 import Footer from "./Footer";
 import { useAuthStore } from "@/store/auth-store";
+import { cn } from "@/lib/utils";
 
 interface SidebarItemProps {
   to: string;

@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth-store";
 import { authApi } from "@/api/auth.api";
 import { toast } from "sonner";
-import { Mail, Phone, Lock, User, Globe, Loader2, Apple, Chrome } from "lucide-react";
+import { Mail, Phone, Lock, User, Globe, Loader2, Apple, Chrome, Eye, EyeOff, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password";
 
@@ -20,6 +21,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -27,8 +29,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
+  const [isNewUser, setIsNewUser] = useState(false);
 
   const { setUser } = useAuthStore();
+  const navigate = useNavigate();
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +89,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         country_of_residence: country,
         password: password,
       });
+      setIsNewUser(true); // Mark as new user for tutorial
       setStep("email_otp");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Registration failed");
@@ -104,6 +109,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setUser(user);
       toast.success("Account verified successfully!");
       onClose();
+      
+      // Redirect to dashboard with tutorial flag for new users
+      if (isNewUser) {
+        navigate("/account/dashboard?tutorial=true");
+      } else {
+        navigate("/account/dashboard");
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Invalid phone OTP");
     } finally {
@@ -116,52 +128,86 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       case "email":
         return (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Email Address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
-                  required 
-                  className="pl-10 h-12"
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Continue"}
-            </Button>
-            
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-100"></span>
-              </div>
-              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
-                <span className="bg-white px-2 text-gray-400">Or continue with</span>
-              </div>
+            <div className="relative mb-4">
+              <input 
+                id="email" 
+                type="email" 
+                placeholder=" "
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+                className="w-full pt-[18px] pr-4 pb-[6px] pl-4 border-[1.5px] border-[#b8eaf5] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2] peer"
+              />
+              <label 
+                htmlFor="email"
+                className="absolute top-1/2 left-4 -translate-y-1/2 text-[15px] text-[#aaa] pointer-events-none transition-all duration-200"
+                style={{
+                  top: email ? "10px" : "50%",
+                  fontSize: email ? "11px" : "15px",
+                  color: email ? "#23bcf2" : "#aaa",
+                  transform: email ? "translateY(0)" : "translateY(-50%)"
+                }}
+              >
+                Email address
+              </label>
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" type="button" className="font-bold border-gray-100 text-[13px] h-12">
-                <Chrome className="w-4 h-4 mr-2" /> Google
-              </Button>
-              <Button variant="outline" type="button" className="font-bold border-gray-100 text-[13px] h-12">
-                <Apple className="w-4 h-4 mr-2" /> Apple
-              </Button>
-            </div>
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full p-4 bg-[#23bcf2] text-white border-none rounded-[10px] text-base font-bold cursor-pointer transition-colors mb-3 disabled:bg-[#b8eaf5] disabled:cursor-default disabled:text-[#6ab8cc] hover:bg-[#1aa6d4]"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading...
+                </div>
+              ) : "Continue"}
+            </button>
             
-            <p className="text-center text-xs text-gray-400 mt-6">
-              {isLoginMode ? "Don't have an account?" : "Already have an account?"}{" "}
+            <div className="text-center mt-3">
               <button 
                 type="button" 
-                onClick={() => setIsLoginMode(!isLoginMode)} 
-                className="text-carry-light font-bold hover:underline"
+                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
               >
-                {isLoginMode ? "Sign Up" : "Log In"}
+                Trouble signing in?
               </button>
+            </div>
+            
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-[#e0f5ff]"></div>
+              <span className="text-xs text-[#aaa] whitespace-nowrap">Or continue with</span>
+              <div className="flex-1 h-px bg-[#e0f5ff]"></div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                type="button"
+                className="flex-1 flex items-center justify-center gap-2 p-3 border-[1.5px] border-[#b8eaf5] rounded-[10px] bg-white cursor-pointer text-sm font-medium text-[#0d1a1f] transition-colors hover:border-[#23bcf2] hover:bg-[#f0faff]"
+              >
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v8.51h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.14z"/>
+                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                </svg>
+                Google
+              </button>
+              <button 
+                type="button"
+                className="flex-1 flex items-center justify-center gap-2 p-3 border-[1.5px] border-[#b8eaf5] rounded-[10px] bg-white cursor-pointer text-sm font-medium text-[#0d1a1f] transition-colors hover:border-[#23bcf2] hover:bg-[#f0faff]"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#0d1a1f">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                </svg>
+                Apple
+              </button>
+            </div>
+            
+            <p className="text-xs text-[#aaa] text-center leading-relaxed mt-5">
+              By continuing, you confirm that you are an adult and have read and accepted our{" "}
+              <a href="#" className="text-[#2d7a96] underline">Terms of Use</a> and{" "}
+              <a href="#" className="text-[#2d7a96] underline">Privacy Policy</a>.
             </p>
           </form>
         );
@@ -169,31 +215,57 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       case "login_password":
         return (
           <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password" title="Password" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input 
-                  id="password" 
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required 
-                  className="pl-10 h-12"
-                />
-              </div>
+            <div className="relative mb-4">
+              <input 
+                id="password" 
+                type={showPassword ? "text" : "password"}
+                placeholder=" "
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+                className="w-full pt-[18px] pr-12 pb-[6px] pl-4 border-[1.5px] border-[#b8eaf5] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2]"
+              />
+              <label 
+                htmlFor="password"
+                className="absolute top-1/2 left-4 -translate-y-1/2 text-[15px] text-[#aaa] pointer-events-none transition-all duration-200 peer-focus:top-[10px] peer-focus:text-[11px] peer-focus:text-[#23bcf2] peer-focus:transform-none peer-[:not(:placeholder-shown)]:top-[10px] peer-[:not(:placeholder-shown)]:text-[11px] peer-[:not(:placeholder-shown)]:text-[#23bcf2] peer-[:not(:placeholder-shown)]:transform-none"
+                style={{
+                  top: password ? "10px" : "50%",
+                  fontSize: password ? "11px" : "15px",
+                  color: password ? "#23bcf2" : "#aaa",
+                  transform: password ? "translateY(0)" : "translateY(-50%)"
+                }}
+              >
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-            <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Log In"}
-            </Button>
             <button 
-              type="button" 
-              onClick={() => setStep("email")} 
-              className="w-full text-center text-xs text-carry-muted font-bold hover:text-carry-light transition-colors"
+              type="submit" 
+              disabled={isLoading}
+              className="w-full p-4 bg-[#23bcf2] text-white border-none rounded-[10px] text-base font-bold cursor-pointer transition-colors disabled:bg-[#b8eaf5] disabled:cursor-default disabled:text-[#6ab8cc] hover:bg-[#1aa6d4]"
             >
-              Back to email
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in...
+                </div>
+              ) : "Sign In"}
             </button>
+            <div className="text-center mt-3">
+              <button 
+                type="button" 
+                onClick={() => setStep("email")} 
+                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
+              >
+                Back
+              </button>
+            </div>
           </form>
         );
 
@@ -331,18 +403,53 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[420px] p-8 border-none bg-white rounded-sm text-carry-darker">
-        <DialogHeader className="mb-6">
-          <DialogTitle className="text-2xl font-bold text-carry-darker text-center">
-            {isLoginMode ? "Welcome Back" : "Create Your Account"}
-          </DialogTitle>
-          <p className="text-center text-gray-500 text-sm">
-            {isLoginMode ? "Log in to your CarryLink account" : "Join the world's most trusted peer-to-peer delivery network"}
-          </p>
-        </DialogHeader>
-        
-        {renderStep()}
-      </DialogContent>
+      {/* Custom backdrop with blur effect matching landingpage.html */}
+      <div 
+        className={cn(
+          "fixed inset-0 z-[9000] flex items-center justify-center transition-opacity duration-300",
+          isOpen ? "opacity-100 pointer-events-all" : "opacity-0 pointer-events-none"
+        )}
+        style={{
+          background: "rgba(4, 32, 48, 0.48)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)"
+        }}
+      >
+        <DialogContent 
+          className="sm:max-w-[420px] p-0 border-none bg-white rounded-2xl text-carry-darker shadow-2xl transform transition-all duration-300"
+          style={{
+            transform: isOpen ? "translateY(0) scale(1)" : "translateY(18px) scale(0.97)",
+            boxShadow: "0 24px 64px rgba(4, 32, 48, 0.28)"
+          }}
+        >
+          {/* Security shield indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs text-[#2d7a96] mt-6 mb-6">
+            <Shield className="w-3 h-3 text-[#23bcf2] stroke-2" />
+            Your information is protected
+          </div>
+          
+          <div className="px-9 pb-8">
+            <DialogHeader className="mb-7">
+              <DialogTitle className="text-[22px] font-bold text-[#0d1a1f] text-center mb-1">
+                {step === "login_password" ? "Welcome back" : 
+                 step === "email_otp" ? "Verify your email" :
+                 step === "phone_otp" ? "Verify your phone" :
+                 step === "register_form" ? "Complete your profile" :
+                 isLoginMode ? "Sign in to CarryLink" : "Join CarryLink"}
+              </DialogTitle>
+              <p className="text-center text-[#757575] text-[13px] leading-relaxed">
+                {step === "login_password" ? "Enter your password to continue" :
+                 step === "email_otp" ? `Please enter the 4-digit code sent to ${email}` :
+                 step === "phone_otp" ? "Enter the SMS code to complete verification" :
+                 step === "register_form" ? "Tell us a bit about yourself" :
+                 isLoginMode ? "Welcome back to CarryLink" : "Ship smarter or earn from your spare luggage. Enter your email to get started."}
+              </p>
+            </DialogHeader>
+            
+            {renderStep()}
+          </div>
+        </DialogContent>
+      </div>
     </Dialog>
   );
 }

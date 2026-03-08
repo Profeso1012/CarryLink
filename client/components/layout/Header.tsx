@@ -129,8 +129,16 @@ export default function Header() {
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger className="relative flex items-center px-[22px] text-white/90 text-[15px] font-normal no-underline whitespace-nowrap transition-colors group hover:text-carry-light">
-                    <div className="w-8 h-8 rounded-full bg-carry-light/20 flex items-center justify-center mr-2">
-                      <User className="w-4 h-4 text-carry-light" />
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-carry-light/20 flex items-center justify-center mr-2">
+                      {user?.profile?.avatar_url ? (
+                        <img 
+                          src={user.profile.avatar_url} 
+                          alt={`${user.first_name} ${user.last_name}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-4 h-4 text-carry-light" />
+                      )}
                     </div>
                     <span className="hidden lg:inline">{user?.first_name}</span>
                   </DropdownMenuTrigger>

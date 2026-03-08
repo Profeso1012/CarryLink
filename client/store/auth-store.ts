@@ -37,6 +37,16 @@ export const useAuthStore = create<AuthState>()(
       setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setLoading: (isLoading) => set({ isLoading }),
       logout: () => {
+        const refreshToken = localStorage.getItem("refresh_token");
+        if (refreshToken) {
+          // Call backend logout API to revoke tokens
+          import("@/lib/api-client").then(({ apiClient }) => {
+            apiClient.post("/auth/logout", { refresh_token: refreshToken }).catch(() => {
+              // If logout API fails, still clear local storage
+              console.warn("Backend logout failed, clearing local storage anyway");
+            });
+          });
+        }
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         set({ user: null, isAuthenticated: false });

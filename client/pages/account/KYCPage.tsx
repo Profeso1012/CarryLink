@@ -21,12 +21,18 @@ export default function KYCPage() {
   const { data: statusData, isLoading: isStatusLoading, refetch: refetchStatus } = useQuery({
     queryKey: ["kyc-status"],
     queryFn: () => kycApi.getStatus(),
-    refetchInterval: (data) => 
-      data?.state?.data?.data?.status === "pending" || 
+    refetchInterval: (data) =>
+      data?.state?.data?.data?.status === "pending" ||
       data?.state?.data?.data?.status === "under_review" ? 30000 : false,
   });
 
-  const kycStatus = statusData?.data?.status || "not_started";
+  useEffect(() => {
+    if (statusData?.data?.status && user && statusData.data.status !== user.kyc_status) {
+      setUser({ ...user, kyc_status: statusData.data.status });
+    }
+  }, [statusData, user, setUser]);
+
+  const kycStatus = statusData?.data?.status || user?.kyc_status || "not_started";
 
   const initiateMutation = useMutation({
     mutationFn: (data: { id_type: string; id_country: string; id_number?: string }) => 

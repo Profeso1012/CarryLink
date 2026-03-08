@@ -26,17 +26,19 @@ import { apiClient } from "@/lib/api-client";
 
 interface Shipment {
   id: string;
-  title: string;
-  description: string;
+  title?: string;
+  item_description: string;
   origin_city: string;
   origin_country: string;
   destination_city: string;
   destination_country: string;
   status: string;
   weight: number;
+  declared_weight_kg?: number;
   offered_price: number;
   currency: string;
   created_at: string;
+  images?: { url: string }[];
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -196,11 +198,15 @@ export default function MyShipments() {
                     <tr key={shipment.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-sm bg-carry-bg flex items-center justify-center text-carry-light shrink-0">
-                            <Package className="w-5 h-5" />
+                          <div className="w-10 h-10 rounded-sm bg-carry-bg flex items-center justify-center text-carry-light shrink-0 overflow-hidden">
+                            {shipment.images?.[0]?.url ? (
+                              <img src={shipment.images[0].url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Package className="w-5 h-5" />
+                            )}
                           </div>
                           <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="font-bold text-carry-darker text-[14px] truncate">{shipment.title}</span>
+                            <span className="font-bold text-carry-darker text-[14px] truncate">{shipment.item_description || shipment.title}</span>
                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">ID: {shipment.id.slice(0, 8)}</span>
                           </div>
                         </div>

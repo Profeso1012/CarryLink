@@ -164,16 +164,6 @@ export default function Header() {
               <div className="flex items-stretch">
                 <button
                   onClick={() => {
-                    setAuthMode("login");
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="relative flex items-center px-[22px] text-white text-[15px] font-normal no-underline whitespace-nowrap transition-all group hover:text-carry-light"
-                >
-                  Sign In
-                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
-                </button>
-                <button
-                  onClick={() => {
                     setAuthMode("register");
                     setIsAuthModalOpen(true);
                   }}

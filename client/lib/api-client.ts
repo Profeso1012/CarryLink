@@ -38,15 +38,22 @@ apiClient.interceptors.response.use(
             refresh_token: refreshToken,
           });
           
-          const { access_token } = response.data.data;
+          const { access_token, refresh_token: newRefreshToken } = response.data.data;
           localStorage.setItem("access_token", access_token);
-          
+          localStorage.setItem("refresh_token", newRefreshToken);
+
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return apiClient(originalRequest);
         } catch (refreshError) {
           // Refresh token expired or invalid
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+
+          // Import useAuthStore dynamically to avoid circular dependency
+          import("@/store/auth-store").then(({ useAuthStore }) => {
+            useAuthStore.getState().logout();
+          });
+
           window.location.href = "/";
           return Promise.reject(refreshError);
         }

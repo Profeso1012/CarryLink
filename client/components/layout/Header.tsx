@@ -19,6 +19,7 @@ export default function Header() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const location = useLocation();
 
   const { isAuthenticated, user, logout } = useAuthStore();
@@ -160,13 +161,28 @@ export default function Header() {
                 </DropdownMenu>
               </div>
             ) : (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="nav-signup relative flex items-center px-[22px] bg-carry-light/20 text-white text-[15px] font-normal no-underline whitespace-nowrap transition-all hover:bg-carry-light/30"
-              >
-                Sign Up
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
-              </button>
+              <div className="flex items-stretch">
+                <button
+                  onClick={() => {
+                    setAuthMode("login");
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="relative flex items-center px-[22px] text-white text-[15px] font-normal no-underline whitespace-nowrap transition-all group hover:text-carry-light"
+                >
+                  Sign In
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthMode("register");
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="nav-signup relative flex items-center px-[22px] bg-carry-light/20 text-white text-[15px] font-normal no-underline whitespace-nowrap transition-all hover:bg-carry-light/30"
+                >
+                  Sign Up
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+                </button>
+              </div>
             )}
           </nav>
 
@@ -177,7 +193,11 @@ export default function Header() {
           </button>
         </div>
       </div>
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authMode}
+      />
     </header>
   );
 }

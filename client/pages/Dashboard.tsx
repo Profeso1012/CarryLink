@@ -27,6 +27,8 @@ import AccountLayout from "@/components/layout/AccountLayout";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 import { apiClient } from "@/lib/api-client";
+import OnboardingTutorial from "@/components/tutorial/OnboardingTutorial";
+import { useSearchParams } from "react-router-dom";
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -56,6 +58,8 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function Dashboard() {
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const [isTutorialOpen, setIsTutorialOpen] = useState(searchParams.get("tutorial") === "true");
 
   const results = useQueries({
     queries: [
@@ -82,6 +86,7 @@ export default function Dashboard() {
 
   return (
     <AccountLayout>
+      <OnboardingTutorial isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
       <div className="space-y-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-[13px] text-gray-400">

@@ -15,9 +15,10 @@ type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_p
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: "login" | "register";
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,8 +29,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [country, setCountry] = useState("NG");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [isLoginMode, setIsLoginMode] = useState(initialMode === "login");
   const [isNewUser, setIsNewUser] = useState(false);
+
+  // Sync mode when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsLoginMode(initialMode === "login");
+      setStep("email");
+    }
+  }, [isOpen, initialMode]);
 
   const { setUser } = useAuthStore();
   const navigate = useNavigate();
@@ -204,6 +213,19 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </button>
             </div>
             
+            <div className="text-center mt-6 pt-6 border-t border-[#e0f5ff]">
+              <p className="text-[13px] text-[#757575]">
+                {isLoginMode ? "Don't have an account?" : "Already have an account?"}
+                <button
+                  type="button"
+                  onClick={() => setIsLoginMode(!isLoginMode)}
+                  className="ml-1 text-[#23bcf2] font-bold hover:underline cursor-pointer"
+                >
+                  {isLoginMode ? "Sign up" : "Sign in"}
+                </button>
+              </p>
+            </div>
+
             <p className="text-xs text-[#aaa] text-center leading-relaxed mt-5">
               By continuing, you confirm that you are an adult and have read and accepted our{" "}
               <a href="#" className="text-[#2d7a96] underline">Terms of Use</a> and{" "}

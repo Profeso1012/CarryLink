@@ -72,7 +72,9 @@ export default function MyShipments() {
     queryKey: ["my-shipments"],
     queryFn: async () => {
       const response = await apiClient.get("/shipments/mine");
-      return response.data.data as Shipment[];
+      // Handle response structure { success: true, data: [...] } or { success: true, data: { shipments: [...] } }
+      const data = response.data.data;
+      return (Array.isArray(data) ? data : data?.shipments || []) as Shipment[];
     }
   });
 
@@ -110,10 +112,10 @@ export default function MyShipments() {
           <span className="text-carry-darker font-medium">My Shipments</span>
         </div>
 
-        {/* Controls Section */}
+        {/* ════ DIVISION 1 — Tabs + Search ════ */}
         <div className="bg-white rounded-sm shadow-sm border border-carry-light/10 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex flex-col gap-6">
-            <div className="flex items-center gap-6 overflow-x-auto no-scrollbar">
+          <div className="p-6 flex flex-col gap-6">
+            <div className="flex items-center gap-6 overflow-x-auto no-scrollbar border-b border-gray-100">
               {[
                 { id: "all", label: "All Shipments", icon: List },
                 { id: "pending", label: "Pending", icon: Clock, count: counts.pending },
@@ -121,7 +123,7 @@ export default function MyShipments() {
                 { id: "delivered", label: "Delivered", icon: PackageCheck },
                 { id: "disputed", label: "Disputed", icon: AlertCircle },
               ].map((tab) => (
-                <button 
+                <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
@@ -140,7 +142,7 @@ export default function MyShipments() {
                 </button>
               ))}
             </div>
-            
+
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
               <div className="flex-1 flex items-stretch border border-gray-200 rounded-sm overflow-hidden">
                 <select className="bg-gray-50 px-3 py-2 text-[13px] font-medium text-carry-darker border-r border-gray-200 outline-none">
@@ -150,9 +152,9 @@ export default function MyShipments() {
                 </select>
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Tracking ID, traveler name or route…" 
+                  <input
+                    type="text"
+                    placeholder="Tracking ID, traveler name or route…"
                     className="w-full pl-10 pr-4 py-2 bg-white text-sm outline-none"
                   />
                 </div>
@@ -169,7 +171,10 @@ export default function MyShipments() {
               </select>
             </div>
           </div>
+        </div>
 
+        {/* ════ DIVISION 2 — Data Table or Empty state ════ */}
+        <div className="bg-white rounded-sm shadow-sm border border-carry-light/10 overflow-hidden">
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="p-20 flex justify-center">
@@ -253,7 +258,7 @@ export default function MyShipments() {
           </div>
         </div>
 
-        {/* Verified Travelers Section matching board.html */}
+        {/* ════ DIVISION 3 — Verified Travelers Section ════ */}
         <div className="bg-white rounded-sm shadow-sm border border-carry-light/10 p-8">
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-carry-muted flex items-center gap-2">

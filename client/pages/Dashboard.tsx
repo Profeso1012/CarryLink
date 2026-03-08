@@ -70,11 +70,14 @@ export default function Dashboard() {
   const [meData, bookings, balance, notifications, listings] = results.map(r => r.data);
   const isLoading = results.some(r => r.isLoading);
 
+  // Use meData for trust score and KYC status for better accuracy
+  const displayUser = meData || user;
+
   const stats = [
     { label: "Active Bookings", value: bookings?.length || "0", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
     { label: "Unread Alerts", value: notifications?.length || "0", icon: Bell, color: "text-red-500", bg: "bg-red-50" },
     { label: "Wallet Balance", value: balance ? `${balance.available_balance.toFixed(2)} ${balance.currency}` : "$0.00", icon: Wallet, color: "text-purple-500", bg: "bg-purple-50" },
-    { label: "Trust Score", value: user?.role === 'admin' ? "100/100" : "98/100", icon: ShieldCheck, color: "text-carry-light", bg: "bg-carry-light/10" }
+    { label: "Trust Score", value: displayUser?.trust_score ? `${displayUser.trust_score}/100` : (user?.role === 'admin' ? "100/100" : "98/100"), icon: ShieldCheck, color: "text-carry-light", bg: "bg-carry-light/10" }
   ];
 
   return (
@@ -88,7 +91,7 @@ export default function Dashboard() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <h2 className="text-2xl font-bold text-carry-darker tracking-tight">Welcome back, {user?.first_name}!</h2>
+          <h2 className="text-2xl font-bold text-carry-darker tracking-tight">Welcome back, {displayUser?.first_name || user?.first_name}!</h2>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-carry-muted">Your Dashboard Overview</p>
         </div>
 
@@ -108,7 +111,7 @@ export default function Dashboard() {
         </div>
 
         {/* KYC Banner if not verified */}
-        {user?.kyc_status !== "approved" && (
+        {displayUser?.kyc_status !== "approved" && (
           <div className="bg-carry-darker rounded-sm p-6 flex flex-col md:flex-row items-center justify-between gap-6 border-l-[6px] border-carry-light shadow-lg">
             <div className="flex items-center gap-5">
               <div className="w-12 h-12 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light shrink-0">

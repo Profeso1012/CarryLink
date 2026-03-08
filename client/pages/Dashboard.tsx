@@ -1,21 +1,27 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import {
   Package,
   MapPin,
   Clock,
-  CheckCircle2,
-  AlertCircle,
-  TrendingUp,
-  Wallet,
   ShieldCheck,
   ArrowRight,
   MoreVertical,
-  Plus,
   Search,
   Filter,
-  Loader2
+  Loader2,
+  Wallet,
+  Bell,
+  TrendingUp,
+  Plus,
+  Send,
+  Plane,
+  ChevronRight,
+  Users,
+  Star,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import AccountLayout from "@/components/layout/AccountLayout";
 import { cn } from "@/lib/utils";
@@ -28,7 +34,8 @@ function StatusBadge({ status }: { status: string }) {
     delivered: "bg-green-100 text-green-700",
     pending_payment: "bg-orange-100 text-orange-700",
     disputed: "bg-red-100 text-red-700",
-    payment_held: "bg-amber-100 text-amber-700"
+    payment_held: "bg-amber-100 text-amber-700",
+    open: "bg-green-100 text-green-700"
   };
 
   const labels: Record<string, string> = {
@@ -36,7 +43,8 @@ function StatusBadge({ status }: { status: string }) {
     delivered: "Delivered",
     pending_payment: "Payment Required",
     disputed: "Disputed",
-    payment_held: "Funds Held"
+    payment_held: "Funds Held",
+    open: "Open"
   };
 
   return (
@@ -47,8 +55,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("all");
-  const { user, setUser } = useAuthStore();
+  const { user } = useAuthStore();
 
   const results = useQueries({
     queries: [
@@ -65,14 +72,21 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Active Bookings", value: bookings?.length || "0", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
-    { label: "Unread Alerts", value: notifications?.length || "0", icon: AlertCircle, color: "text-red-500", bg: "bg-red-50" },
+    { label: "Unread Alerts", value: notifications?.length || "0", icon: Bell, color: "text-red-500", bg: "bg-red-50" },
     { label: "Wallet Balance", value: balance ? `${balance.available_balance.toFixed(2)} ${balance.currency}` : "$0.00", icon: Wallet, color: "text-purple-500", bg: "bg-purple-50" },
-    { label: "Trust Score", value: "98/100", icon: ShieldCheck, color: "text-carry-light", bg: "bg-carry-light/10" }
+    { label: "Trust Score", value: user?.role === 'admin' ? "100/100" : "98/100", icon: ShieldCheck, color: "text-carry-light", bg: "bg-carry-light/10" }
   ];
 
   return (
     <AccountLayout>
       <div className="space-y-8">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-[13px] text-gray-400">
+          <Link to="/" className="hover:text-carry-light transition-colors">Home</Link>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-carry-darker font-medium">Dashboard</span>
+        </div>
+
         <div className="flex flex-col gap-1">
           <h2 className="text-2xl font-bold text-carry-darker tracking-tight">Welcome back, {user?.first_name}!</h2>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-carry-muted">Your Dashboard Overview</p>
@@ -160,19 +174,19 @@ export default function Dashboard() {
                             <Package className="w-5 h-5" />
                           </div>
                           <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-carry-darker text-[14px]">{booking.shipment_title}</span>
+                            <span className="font-bold text-carry-darker text-[14px]">{booking.shipment_title || "Shipment Request"}</span>
                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">ID: {booking.id.slice(0, 8)}</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-bold text-carry-muted text-[13px]">{booking.route}</span>
+                          <span className="font-bold text-carry-muted text-[13px]">{booking.route || "Corridor Search"}</span>
                           <span className="text-[10px] text-gray-400 font-bold uppercase">{new Date(booking.created_at).toLocaleDateString()}</span>
                         </div>
                       </td>
                       <td className="px-6 py-5 font-bold text-carry-darker text-[14px]">
-                        {booking.total_amount} {booking.currency}
+                        {booking.total_amount || booking.offered_price} {booking.currency}
                       </td>
                       <td className="px-6 py-5">
                         <StatusBadge status={booking.status} />
@@ -193,6 +207,16 @@ export default function Dashboard() {
                 </div>
                 <h3 className="text-xl font-bold text-carry-darker">No recent activity</h3>
                 <p className="text-gray-500 max-w-sm">Your delivery bookings and shipment requests will appear here once you start using the platform.</p>
+                <div className="flex items-center gap-4 pt-4">
+                  <Link to="/account/send-package" className="px-6 py-2 bg-carry-light text-white rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-[#1aa6d4] transition-all flex items-center gap-2">
+                    <Send className="w-3.5 h-3.5" />
+                    Send a Package
+                  </Link>
+                  <Link to="/account/post-trip" className="px-6 py-2 border border-carry-light text-carry-light rounded-sm text-[11px] font-bold uppercase tracking-widest hover:bg-carry-light/5 transition-all flex items-center gap-2">
+                    <Plane className="w-3.5 h-3.5" />
+                    Post a Trip
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -207,53 +231,52 @@ export default function Dashboard() {
         </div>
 
         {/* Verified Travelers Section */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white rounded-sm shadow-sm border border-carry-light/10 p-8">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-carry-muted flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
+              <Users className="w-4 h-4 text-carry-light" />
               Verified Travelers on Your Routes
             </h3>
-            <Link to="/browse/listings" className="text-xs font-bold text-carry-light hover:underline tracking-tight">
-              Browse all corridors
+            <Link to="/browse/listings" className="text-[11px] font-bold text-carry-light hover:underline uppercase tracking-widest flex items-center gap-1.5">
+              Browse all travelers
+              <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {listings && listings.length > 0 ? listings.map((listing: any) => (
-              <div key={listing.id} className="bg-white p-6 rounded-sm shadow-sm border border-carry-light/10 group hover:shadow-md transition-all">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-carry-light/10 border-2 border-white shadow-sm overflow-hidden shrink-0 flex items-center justify-center">
-                    <span className="font-bold text-carry-light text-xs">{listing.user?.first_name.charAt(0)}</span>
+              <div key={listing.id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
+                <div className="relative h-40">
+                  <img 
+                    src={listing.user?.avatar_url || `https://images.unsplash.com/photo-${listing.id.length > 10 ? '1573496359142-b8d87734a5a2' : '1560250097-0b93528c311a'}?w=400&h=300&fit=crop&q=80`} 
+                    alt={listing.user?.first_name}
+                    className="w-full h-full object-cover"
+                  />
+                  <span className="absolute top-3 right-3 bg-carry-light text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm">Verified</span>
+                </div>
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="font-bold text-carry-darker text-[15px] mb-2">{listing.user?.first_name} {listing.user?.last_name}</div>
+                  <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
+                    <MapPin className="w-3 h-3" />
+                    {listing.origin_city} &rarr; {listing.destination_city}
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-carry-darker text-sm truncate">{listing.user?.first_name} {listing.user?.last_name.charAt(0)}.</span>
-                    <div className="flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3 text-carry-light" />
-                      <span className="text-[9px] font-bold text-carry-light uppercase tracking-tight">Verified</span>
+                  <hr className="border-gray-100 mb-4" />
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-bold">
+                      <Clock className="w-3 h-3" />
+                      {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
                     </div>
+                    <div className="text-carry-light font-bold text-[13px]">${listing.price_per_kg || 10}/kg</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-500 text-[11px] font-bold mt-auto">
+                    <Star className="w-3 h-3 fill-current" />
+                    4.9 · 38 deliveries
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-2 mb-6">
-                  <div className="flex flex-col items-center">
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{listing.origin_city.slice(0, 3).toUpperCase()}</span>
-                    <div className="w-1.5 h-1.5 rounded-full bg-carry-light my-1"></div>
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{listing.destination_city.slice(0, 3).toUpperCase()}</span>
-                  </div>
-                  <div className="flex-1 h-[1.5px] bg-carry-light/20 relative">
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-carry-light rounded-full"></div>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-xs font-bold text-carry-darker">{new Date(listing.departure_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-                    <span className="text-[9px] text-gray-400 uppercase font-bold tracking-tight">Departure</span>
-                  </div>
-                </div>
-                <button className="w-full py-2 bg-carry-bg text-carry-light rounded-sm text-[11px] font-bold uppercase tracking-widest border border-carry-light/20 group-hover:bg-carry-light group-hover:text-white group-hover:border-carry-light transition-all">
-                  Send Inquiry
-                </button>
               </div>
             )) : (
               [1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-gray-50 h-48 rounded-sm animate-pulse"></div>
+                <div key={i} className="bg-gray-50 h-64 rounded-sm animate-pulse"></div>
               ))
             )}
           </div>

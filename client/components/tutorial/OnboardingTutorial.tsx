@@ -3,6 +3,7 @@ import { X, ArrowRight, ShieldCheck, Package, Plane, CheckCircle } from "lucide-
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 interface TutorialStep {
   id: string;
@@ -120,8 +121,8 @@ export default function OnboardingTutorial({ isOpen, onClose }: OnboardingTutori
         {/* Step-specific content */}
         {step.id === "first-action" && (
           <div className="space-y-3 mb-6">
-            <a
-              href="/account/send-package"
+            <Link
+              to="/account/send-package"
               onClick={onClose}
               className="flex items-center gap-3 p-4 border border-[#b8eaf5] rounded-lg hover:border-[#23bcf2] hover:bg-[#f0faff] transition-colors group"
             >
@@ -133,10 +134,10 @@ export default function OnboardingTutorial({ isOpen, onClose }: OnboardingTutori
                 <div className="text-xs text-[#2d7a96]">Find travelers to deliver your items</div>
               </div>
               <ArrowRight className="w-4 h-4 text-[#2d7a96] group-hover:text-[#23bcf2]" />
-            </a>
+            </Link>
             
-            <a
-              href="/account/post-trip"
+            <Link
+              to="/account/post-trip"
               onClick={onClose}
               className="flex items-center gap-3 p-4 border border-[#b8eaf5] rounded-lg hover:border-[#23bcf2] hover:bg-[#f0faff] transition-colors group"
             >
@@ -148,7 +149,7 @@ export default function OnboardingTutorial({ isOpen, onClose }: OnboardingTutori
                 <div className="text-xs text-[#2d7a96]">Earn money from your spare luggage space</div>
               </div>
               <ArrowRight className="w-4 h-4 text-[#2d7a96] group-hover:text-[#23bcf2]" />
-            </a>
+            </Link>
           </div>
         )}
 
@@ -167,9 +168,9 @@ export default function OnboardingTutorial({ isOpen, onClose }: OnboardingTutori
               asChild
               className="flex-1 bg-[#23bcf2] hover:bg-[#1aa6d4] text-white"
             >
-              <a href={step.action.href} onClick={onClose}>
+              <Link to={step.action.href} onClick={onClose}>
                 {step.action.label}
-              </a>
+              </Link>
             </Button>
           ) : (
             <Button

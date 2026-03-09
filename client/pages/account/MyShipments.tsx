@@ -231,9 +231,9 @@ export default function MyShipments() {
                         <StatusBadge status={shipment.status} />
                       </td>
                       <td className="px-6 py-5 text-right">
-                        <button className="p-2 text-gray-300 hover:text-carry-darker transition-colors">
-                          <MoreVertical className="w-5 h-5" />
-                        </button>
+                        <Link to={`/shipments/${shipment.id}`} className="p-2 text-gray-300 hover:text-carry-light transition-colors inline-block">
+                          <ChevronRight className="w-5 h-5" />
+                        </Link>
                       </td>
                     </tr>
                   ))}

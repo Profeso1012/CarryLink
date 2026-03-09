@@ -78,31 +78,15 @@ export default function Settings() {
 
     setIsUploading(true);
     try {
-      // 1. Get signed upload params
-      const { data: { data: uploadParams } } = await apiClient.post("/users/me/avatar");
-
-      // 2. Upload to Cloudinary
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("api_key", uploadParams.api_key);
-      formData.append("timestamp", uploadParams.timestamp.toString());
-      formData.append("signature", uploadParams.signature);
-      formData.append("public_id", uploadParams.public_id);
+      formData.append("avatar", file);
 
-      const cloudResponse = await fetch(uploadParams.upload_url, {
-        method: "POST",
-        body: formData
-      });
-      const cloudData = await cloudResponse.json();
-
-      // 3. Update user profile with new avatar URL
-      await updateProfileMutation.mutateAsync({
-        avatar_url: cloudData.secure_url
-      });
-
+      const response = await apiClient.post("/users/me/avatar", formData);
+      const updatedUser = response.data.data.user || response.data.data;
+      setUser(updatedUser);
       toast.success("Avatar updated successfully!");
     } catch (error: any) {
-      toast.error("Failed to upload avatar");
+      toast.error(error.response?.data?.message || "Failed to upload avatar");
     } finally {
       setIsUploading(false);
     }

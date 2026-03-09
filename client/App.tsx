@@ -81,7 +81,7 @@ const App = () => (
           } />
 
           {/* Public Browse Routes */}
-          <Route path="/how-it-works" element={<PlaceholderPage title="How It Works" />} />
+          <Route path="/resources" element={<PlaceholderPage title="Resources" />} />
           <Route path="/browse/listings" element={<BrowseListings />} />
           <Route path="/browse/shipments" element={<BrowseShipments />} />
           <Route path="/listings/:id" element={<ListingDetail />} />

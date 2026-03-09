@@ -3,13 +3,13 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { 
-  MapPin, 
-  Calendar, 
-  Package, 
-  ShieldCheck, 
-  ChevronRight, 
-  Loader2, 
+import {
+  MapPin,
+  Calendar,
+  Package,
+  ShieldCheck,
+  ChevronRight,
+  Loader2,
   Star,
   ArrowRight,
   Info,
@@ -23,7 +23,11 @@ import {
   ExternalLink,
   Weight,
   Layers,
-  Plane
+  Plane,
+  X,
+  Plus,
+  Trash2,
+  Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -47,14 +51,59 @@ export default function ShipmentDetail() {
   const { user, isAuthenticated } = useAuthStore();
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const { data: shipment, isLoading } = useQuery({
+  const { data: shipment, isLoading, refetch } = useQuery({
     queryKey: ["shipment", id],
     queryFn: async () => {
       const response = await apiClient.get(`/shipments/${id}`);
       return response.data.data;
     }
   });
+
+  const isOwner = user?.id === shipment?.sender?.id;
+
+  const addImagesMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const formData = new FormData();
+      files.forEach(file => formData.append('images', file));
+      return apiClient.post(`/shipments/${id}/images`, formData);
+    },
+    onSuccess: () => {
+      toast.success("Images added successfully!");
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to add images");
+    },
+    onSettled: () => setIsUploading(false)
+  });
+
+  const deleteImageMutation = useMutation({
+    mutationFn: (imageId: string) => apiClient.delete(`/shipments/${id}/images/${imageId}`),
+    onSuccess: () => {
+      toast.success("Image removed successfully!");
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to delete image");
+    }
+  });
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const currentImagesCount = shipment?.images?.length || 0;
+    if (currentImagesCount + files.length > 5) {
+      toast.error("A shipment can have at most 5 images.");
+      return;
+    }
+
+    setIsUploading(true);
+    addImagesMutation.mutate(Array.from(files));
+  };
 
   const { data: myListings } = useQuery({
     queryKey: ["my-active-listings"],
@@ -149,26 +198,81 @@ export default function ShipmentDetail() {
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm overflow-hidden">
                 <div className="grid grid-cols-1 md:grid-cols-5">
                   {/* Image Section */}
-                  <div className="md:col-span-2 bg-gray-50/50 flex items-center justify-center p-8 border-b md:border-b-0 md:border-r border-gray-100 min-h-[300px]">
-                    <div className="relative group w-full aspect-square bg-white rounded-sm border border-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
-                      {shipment.images?.[0]?.url || shipment.thumbnail_url ? (
-                        <img src={shipment.images?.[0]?.url || shipment.thumbnail_url} alt={shipment.title} className="w-full h-full object-cover" />
+                  <div className="md:col-span-2 bg-gray-50/50 flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-gray-100 min-h-[350px]">
+                    <div className="relative group w-full aspect-square bg-white rounded-sm border border-gray-100 flex items-center justify-center overflow-hidden shadow-sm mb-4">
+                      {shipment.images?.length > 0 ? (
+                        <img
+                          src={activeImage || shipment.images[0].url}
+                          alt={shipment.title}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <Package className="w-12 h-12 text-carry-light/40" />
                       )}
                     </div>
+
+                    {/* Image Gallery Thumbnails */}
+                    {shipment.images?.length > 0 && (
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {shipment.images.map((img: any) => (
+                          <div key={img.id} className="relative group">
+                            <button
+                              onClick={() => setActiveImage(img.url)}
+                              className={cn(
+                                "w-12 h-12 rounded-sm border-2 overflow-hidden transition-all",
+                                (activeImage === img.url || (!activeImage && shipment.images[0].url === img.url))
+                                  ? "border-carry-light"
+                                  : "border-transparent hover:border-gray-300"
+                              )}
+                            >
+                              <img src={img.url} className="w-full h-full object-cover" alt="" />
+                            </button>
+                            {isOwner && (
+                              <button
+                                onClick={() => deleteImageMutation.mutate(img.id)}
+                                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+
+                        {isOwner && shipment.images.length < 5 && (
+                          <label className="w-12 h-12 rounded-sm border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 cursor-pointer hover:border-carry-light hover:text-carry-light transition-all">
+                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                          </label>
+                        )}
+                      </div>
+                    )}
+
+                    {!shipment.images?.length && isOwner && (
+                      <label className="flex items-center gap-2 text-carry-light font-bold text-xs uppercase tracking-widest cursor-pointer hover:underline mt-2">
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                        Add Photos
+                        <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      </label>
+                    )}
                   </div>
 
                   {/* Info Section */}
                   <div className="md:col-span-3 p-8 space-y-6 flex flex-col justify-center">
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-50 text-green-600 hover:bg-green-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                          Open Request
-                        </Badge>
-                        <Badge className="bg-carry-bg text-carry-muted hover:bg-carry-bg border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                          {shipment.category?.name || "General Item"}
-                        </Badge>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-50 text-green-600 hover:bg-green-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            Open Request
+                          </Badge>
+                          <Badge className="bg-carry-bg text-carry-muted hover:bg-carry-bg border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            {shipment.category?.name || "General Item"}
+                          </Badge>
+                        </div>
+                        {isOwner && (
+                          <Badge className="bg-blue-50 text-blue-600 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            My Shipment
+                          </Badge>
+                        )}
                       </div>
                       <h1 className="text-3xl font-black text-carry-darker leading-tight">
                         {shipment.title || shipment.item_description}
@@ -249,7 +353,7 @@ export default function ShipmentDetail() {
 
             {/* Right Column - Reward & Sender */}
             <div className="space-y-6">
-              {/* Action Card */}
+              {/* Reward & Sender Card (Mobile and Desktop) */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8 space-y-6">
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block mb-1">Offered Reward</span>
@@ -258,13 +362,26 @@ export default function ShipmentDetail() {
                   </div>
                   <p className="text-[11px] text-gray-400 font-bold uppercase tracking-tight pt-2">Full payment held in escrow</p>
                 </div>
-                
-                <Button 
-                  onClick={handleBidToCarry}
-                  className="w-full h-14 bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs shadow-md"
-                >
-                  Bid to Carry
-                </Button>
+
+                {!isOwner ? (
+                  <Button
+                    onClick={handleBidToCarry}
+                    className="w-full h-14 bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs shadow-md"
+                  >
+                    Bid to Carry
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full h-14 font-bold uppercase tracking-widest text-xs border-carry-light/20 text-carry-light"
+                    >
+                      <Link to={`/account/my-shipments`}>Manage All My Shipments</Link>
+                    </Button>
+                    <p className="text-[10px] text-center text-gray-400 font-bold uppercase">This is your shipment request.</p>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-center gap-4 pt-2">
                   <button className="flex items-center gap-2 text-[11px] font-bold text-carry-muted uppercase tracking-widest hover:text-carry-light transition-colors">

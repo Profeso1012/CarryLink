@@ -102,51 +102,26 @@ export default function SendPackage() {
 
   const createShipmentMutation = useMutation({
     mutationFn: async (data: any) => {
-      const shipmentResponse = await apiClient.post("/shipments", {
-        ...data,
-        declared_weight_kg: parseFloat(data.declared_weight_kg),
-        offered_price: parseFloat(data.offered_price),
+      const formData = new FormData();
+
+      // Add text fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, String(value));
+        }
       });
 
-      const shipmentId = shipmentResponse.data.data.id;
+      // Ensure numeric fields are correctly handled (backend parses them)
+      formData.set('declared_weight_kg', String(parseFloat(data.declared_weight_kg)));
+      formData.set('offered_price', String(parseFloat(data.offered_price)));
 
-      // If there are images, handle confirmation
-      if (uploadedFiles.length > 0) {
-        // Step 1: Request upload permissions for THIS shipment
-        const { data: { data: { upload_configs } } } = await apiClient.post(`/shipments/${shipmentId}/images`, {
-          count: uploadedFiles.length
-        });
+      // Add images
+      uploadedFiles.forEach(file => {
+        formData.append('images', file);
+      });
 
-        const newUrls: string[] = [];
-
-        // Step 2: Upload each file to Cloudinary
-        for (let i = 0; i < uploadedFiles.length; i++) {
-          const file = uploadedFiles[i];
-          const config = upload_configs[i];
-
-          const uploadFormData = new FormData();
-          uploadFormData.append("file", file);
-          uploadFormData.append("signature", config.signature);
-          uploadFormData.append("timestamp", config.timestamp.toString());
-          uploadFormData.append("api_key", config.api_key);
-          uploadFormData.append("public_id", config.public_id);
-          uploadFormData.append("folder", config.folder);
-
-          const res = await fetch(config.upload_url, {
-            method: "POST",
-            body: uploadFormData
-          });
-          const cloudData = await res.json();
-          newUrls.push(cloudData.secure_url);
-        }
-
-        // Step 3: Confirm images for THIS shipment
-        await apiClient.post(`/shipments/${shipmentId}/images/confirm`, {
-          urls: newUrls
-        });
-      }
-
-      return shipmentResponse.data;
+      const response = await apiClient.post("/shipments", formData);
+      return response.data;
     },
     onSuccess: (data) => {
       const isDraft = data.data.status === 'draft';

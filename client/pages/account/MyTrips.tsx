@@ -274,8 +274,8 @@ export default function MyTrips() {
             {shipments && shipments.length > 0 ? shipments.map((shipment: any) => (
               <div key={shipment.id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
                 <div className="relative h-40">
-                  <img 
-                    src={`https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop&q=80`} 
+                  <img
+                    src={shipment.images?.[0]?.url || shipment.thumbnail_url || `https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop&q=80`}
                     alt={shipment.title}
                     className="w-full h-full object-cover"
                   />

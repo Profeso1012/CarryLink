@@ -249,11 +249,15 @@ export default function BrowseListings() {
                     <Info className="w-3 h-3 text-gray-400" />
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">Will Carry:</span>
                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                      {listing.accepted_categories.map((cat: string) => (
-                        <span key={cat} className="text-[10px] font-bold text-carry-muted bg-white px-2 py-0.5 rounded-sm border border-gray-100 whitespace-nowrap">
-                          {cat}
-                        </span>
-                      ))}
+                      {Array.isArray(listing.accepted_categories) && listing.accepted_categories.map((cat: any, idx: number) => {
+                        const name = typeof cat === 'object' && cat !== null ? cat.name : String(cat);
+                        const id = typeof cat === 'object' && cat !== null ? cat.id : idx;
+                        return (
+                          <span key={id} className="text-[10px] font-bold text-carry-muted bg-white px-2 py-0.5 rounded-sm border border-gray-100 whitespace-nowrap">
+                            {String(name)}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

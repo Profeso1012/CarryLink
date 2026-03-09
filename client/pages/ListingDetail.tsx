@@ -203,12 +203,16 @@ export default function ListingDetail() {
                   <h3 className="text-lg font-bold text-carry-darker">What I Can Carry</h3>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {listing.accepted_categories?.map((cat: any) => (
-                    <div key={typeof cat === 'string' ? cat : cat.id} className="flex items-center gap-3 p-4 rounded-sm border border-gray-100 bg-gray-50/30">
-                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                      <span className="text-sm font-bold text-carry-darker">{typeof cat === 'string' ? cat : cat.name}</span>
-                    </div>
-                  ))}
+                  {Array.isArray(listing.accepted_categories) && listing.accepted_categories.map((cat: any, idx: number) => {
+                    const name = typeof cat === 'object' && cat !== null ? cat.name : String(cat);
+                    const id = typeof cat === 'object' && cat !== null ? cat.id : idx;
+                    return (
+                      <div key={id} className="flex items-center gap-3 p-4 rounded-sm border border-gray-100 bg-gray-50/30">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                        <span className="text-sm font-bold text-carry-darker">{String(name)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
                 {listing.notes && (
                   <div className="mt-6 p-6 bg-amber-50/50 border border-amber-100 rounded-sm">

@@ -79,7 +79,7 @@ export default function MyTrips() {
     queryKey: ["urgent-shipments"],
     queryFn: async () => {
       const response = await apiClient.get("/shipments?limit=4");
-      return response.data.data;
+      return response.data.data.shipments;
     }
   });
 

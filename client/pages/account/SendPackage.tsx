@@ -64,6 +64,7 @@ export default function SendPackage() {
   }>({ status: 'idle', message: '' });
 
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   // Debounce for prohibited check
@@ -110,9 +111,38 @@ export default function SendPackage() {
       const shipmentId = shipmentResponse.data.data.id;
 
       // If there are images, handle confirmation
-      if (uploadedImages.length > 0) {
-        await apiClient.post(`/shipments/${shipmentId}/confirm-images`, {
-          urls: uploadedImages
+      if (uploadedFiles.length > 0) {
+        // Step 1: Request upload permissions for THIS shipment
+        const { data: { data: { upload_configs } } } = await apiClient.post(`/shipments/${shipmentId}/images`, {
+          count: uploadedFiles.length
+        });
+
+        const newUrls: string[] = [];
+
+        // Step 2: Upload each file to Cloudinary
+        for (let i = 0; i < uploadedFiles.length; i++) {
+          const file = uploadedFiles[i];
+          const config = upload_configs[i];
+
+          const uploadFormData = new FormData();
+          uploadFormData.append("file", file);
+          uploadFormData.append("signature", config.signature);
+          uploadFormData.append("timestamp", config.timestamp.toString());
+          uploadFormData.append("api_key", config.api_key);
+          uploadFormData.append("public_id", config.public_id);
+          uploadFormData.append("folder", config.folder);
+
+          const res = await fetch(config.upload_url, {
+            method: "POST",
+            body: uploadFormData
+          });
+          const cloudData = await res.json();
+          newUrls.push(cloudData.secure_url);
+        }
+
+        // Step 3: Confirm images for THIS shipment
+        await apiClient.post(`/shipments/${shipmentId}/images/confirm`, {
+          urls: newUrls
         });
       }
 
@@ -148,56 +178,26 @@ export default function SendPackage() {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    if (uploadedImages.length + files.length > 5) {
+    if (uploadedFiles.length + files.length > 5) {
       toast.error("You can upload at most 5 images.");
       return;
     }
 
-    setIsUploading(true);
-    try {
-      // Step 1: Request upload permissions
-      const { data: { data: { upload_configs } } } = await apiClient.post("/shipments/temp/images", {
-        count: files.length
-      });
+    const newFiles = Array.from(files);
+    setUploadedFiles(prev => [...prev, ...newFiles]);
 
-      const newUrls: string[] = [];
-
-      // Step 2: Upload each file to Cloudinary
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const config = upload_configs[i];
-
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", file);
-        uploadFormData.append("signature", config.signature);
-        uploadFormData.append("timestamp", config.timestamp.toString());
-        uploadFormData.append("api_key", config.api_key);
-        uploadFormData.append("public_id", config.public_id);
-        uploadFormData.append("folder", config.folder);
-
-        const res = await fetch(config.upload_url, {
-          method: "POST",
-          body: uploadFormData
-        });
-        const cloudData = await res.json();
-        newUrls.push(cloudData.secure_url);
-      }
-
-      setUploadedImages(prev => [...prev, ...newUrls]);
-      toast.success("Images uploaded successfully!");
-    } catch (error: any) {
-      toast.error("Failed to upload images");
-    } finally {
-      setIsUploading(false);
-    }
+    // Create preview URLs
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+    setUploadedImages(prev => [...prev, ...newPreviews]);
   };
 
   const removeImage = (index: number) => {
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (

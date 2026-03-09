@@ -7,12 +7,14 @@ export interface User {
   phone_number: string | null;
   first_name: string;
   last_name: string;
+  display_name?: string;
+  avatar_url?: string | null;
   role: "user" | "admin" | "superadmin";
   kyc_status: "not_started" | "pending" | "under_review" | "approved" | "rejected" | "expired";
   email_verified: boolean;
   phone_verified: boolean;
+  trust_score?: number;
   profile?: {
-    avatar_url: string | null;
     country_of_residence: string;
   };
 }
@@ -33,7 +35,12 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => {
+        if (user && user.profile?.avatar_url && !user.avatar_url) {
+          user.avatar_url = user.profile.avatar_url;
+        }
+        set({ user, isAuthenticated: !!user });
+      },
       setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setLoading: (isLoading) => set({ isLoading }),
       logout: () => {

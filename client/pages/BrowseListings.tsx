@@ -157,27 +157,27 @@ export default function BrowseListings() {
                     <div className="md:w-64 p-6 bg-gray-50/50 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center text-center justify-center space-y-3">
                       <div className="relative">
                         <div className="w-16 h-16 rounded-full bg-white border-2 border-carry-light/20 flex items-center justify-center overflow-hidden">
-                          {listing.traveler.avatar_url ? (
+                          {listing.traveler?.avatar_url ? (
                             <img src={listing.traveler.avatar_url} alt={listing.traveler.display_name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xl font-bold text-carry-light">{listing.traveler.display_name[0]}</span>
+                            <span className="text-xl font-bold text-carry-light">{listing.traveler?.display_name?.[0] || "?"}</span>
                           )}
                         </div>
-                        {listing.traveler.badges?.includes("verified_traveler") && (
+                        {listing.traveler?.badges?.includes("verified_traveler") && (
                           <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
                             <ShieldCheck className="w-5 h-5 text-green-500 fill-green-50" />
                           </div>
                         )}
                       </div>
                       <div>
-                        <h4 className="font-bold text-carry-darker text-sm">{listing.traveler.display_name}</h4>
+                        <h4 className="font-bold text-carry-darker text-sm">{listing.traveler?.display_name || "Unknown Traveler"}</h4>
                         <div className="flex items-center justify-center gap-1 mt-1">
                           <Star className="w-3 h-3 text-amber-500 fill-current" />
-                          <span className="text-[11px] font-bold text-gray-500">{listing.traveler.trust_score}/100 Trust</span>
+                          <span className="text-[11px] font-bold text-gray-500">{listing.traveler?.trust_score || 0}/100 Trust</span>
                         </div>
                       </div>
-                      <Link 
-                        to={`/profile/${listing.traveler.id}`}
+                      <Link
+                        to={`/profile/${listing.traveler?.id}`}
                         className="text-[10px] font-bold text-carry-light uppercase tracking-widest hover:underline"
                       >
                         View Profile

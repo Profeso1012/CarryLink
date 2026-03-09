@@ -47,7 +47,7 @@ export default function Footer() {
           <div className="ft-col">
             <h3 className="ft-col-h">Platform</h3>
             <ul className="ft-list">
-              <li><Link to="/how-it-works">How It Works</Link></li>
+              <li><Link to="/resources">Resources</Link></li>
               <li><Link to="/browse/shipments">For Senders</Link></li>
               <li><Link to="/browse/listings">For Travelers</Link></li>
               <li><Link to="/policy/prohibited-items">Prohibited Items Policy</Link></li>

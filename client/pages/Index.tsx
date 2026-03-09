@@ -209,7 +209,7 @@ export default function Index() {
               <p className="lbl opacity-60">Trust & Safety</p>
               <h2 className="art-h">Your money is protected until delivery is confirmed</h2>
               <p className="art-t">CarryLink's escrow system holds your payment securely. Funds are only released to the traveler after the recipient confirms delivery — giving both sides complete peace of mind. No upfront risk. No fraud.</p>
-              <Link to="/how-it-works" className="btn-w">How escrow works</Link>
+              <Link to="/resources" className="btn-w">How escrow works</Link>
             </div>
           </div>
         </section>

@@ -91,16 +91,16 @@ export default function Header() {
         <div className="header-right flex items-stretch ml-auto">
           <nav className="header-nav hidden md:flex items-stretch">
             <NavLink
-              to="/how-it-works"
+              to="/resources"
               className={({ isActive }) => cn(
                 "relative flex items-center px-[22px] text-white/90 text-[15px] font-normal no-underline whitespace-nowrap transition-colors group hover:text-carry-light",
                 isActive && "text-carry-light"
               )}
             >
-              How It Works
+              Resources
               <div className={cn(
                 "absolute bottom-0 left-0 right-0 h-[3px] bg-carry-light transition-transform origin-left",
-                location.pathname === "/how-it-works" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                location.pathname === "/resources" ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
               )}></div>
             </NavLink>
             <NavLink

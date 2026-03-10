@@ -20,7 +20,7 @@ import {
   Weight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api-client";
+import { shipmentsApi } from "@/api/shipments.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -44,17 +44,17 @@ export default function BrowseShipments() {
   const { data, isLoading } = useQuery({
     queryKey: ["browse-shipments", filters],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value.toString());
+      return shipmentsApi.getAll({
+        origin_country: filters.origin_country,
+        destination_country: filters.destination_country,
+        limit: filters.limit,
+        offset: (filters.page - 1) * filters.limit,
       });
-      const response = await apiClient.get(`/shipments?${params.toString()}`);
-      return response.data;
     }
   });
 
-  const shipments = data?.data?.shipments || [];
-  const meta = data?.meta || { total: 0, page: 1, limit: 10 };
+  const shipments = data?.requests || [];
+  const meta = data?.pagination || { total: 0, limit: 10, offset: 0, hasMore: false };
 
   return (
     <div className="min-h-screen bg-carry-bg flex flex-col">
@@ -139,7 +139,7 @@ export default function BrowseShipments() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-carry-darker">Available Shipment Requests ({meta.total})</h2>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">Showing page {meta.page} of {Math.ceil(meta.total / meta.limit) || 1}</span>
+              <span className="text-sm text-gray-400">Showing page {filters.page} of {Math.ceil(meta.total / meta.limit) || 1}</span>
             </div>
           </div>
 
@@ -160,8 +160,8 @@ export default function BrowseShipments() {
                     <div className="md:w-64 p-6 bg-gray-50/50 border-b md:border-b-0 md:border-r border-gray-100 flex flex-col items-center text-center justify-center space-y-4">
                       <div className="relative group/img">
                         <div className="w-24 h-24 rounded-sm bg-white border border-carry-light/10 flex items-center justify-center overflow-hidden shadow-sm">
-                          {shipment.images?.[0]?.url || shipment.thumbnail_url ? (
-                            <img src={shipment.images?.[0]?.url || shipment.thumbnail_url} alt={shipment.title} className="w-full h-full object-cover" />
+                          {shipment.images?.length > 0 ? (
+                            <img src={shipment.images[0].url} alt={shipment.item_description} className="w-full h-full object-cover" />
                           ) : (
                             <Package className="w-8 h-8 text-carry-light/40" />
                           )}
@@ -170,21 +170,25 @@ export default function BrowseShipments() {
                       
                       <div className="flex flex-col items-center">
                         <div className="w-8 h-8 rounded-full bg-white border border-carry-light/10 overflow-hidden mb-2">
-                          {shipment.sender.avatar_url ? (
-                            <img src={shipment.sender.avatar_url} alt={shipment.sender.display_name} className="w-full h-full object-cover" />
+                          {shipment.avatar_url ? (
+                            <img src={shipment.avatar_url} alt={shipment.display_name || `${shipment.first_name} ${shipment.last_name}`} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-xs font-bold text-carry-light flex items-center justify-center h-full bg-carry-bg">{shipment.sender.display_name[0]}</span>
+                            <span className="text-xs font-bold text-carry-light flex items-center justify-center h-full bg-carry-bg">
+                              {(shipment.display_name || shipment.first_name || 'U')[0]}
+                            </span>
                           )}
                         </div>
-                        <h4 className="font-bold text-carry-darker text-[13px]">{shipment.sender.display_name}</h4>
+                        <h4 className="font-bold text-carry-darker text-[13px]">
+                          {shipment.display_name || `${shipment.first_name} ${shipment.last_name}`}
+                        </h4>
                         <div className="flex items-center gap-1 mt-0.5">
                           <Star className="w-3 h-3 text-amber-500 fill-current" />
-                          <span className="text-[10px] font-bold text-gray-400">{shipment.sender.trust_score || 0}% Trust</span>
+                          <span className="text-[10px] font-bold text-gray-400">{shipment.trust_score || 0}% Trust</span>
                         </div>
                       </div>
                       
                       <Link 
-                        to={`/profile/${shipment.sender.id}`}
+                        to={`/profile/${shipment.sender_id}`}
                         className="text-[10px] font-bold text-carry-light uppercase tracking-widest hover:underline"
                       >
                         View Profile
@@ -195,10 +199,12 @@ export default function BrowseShipments() {
                     <div className="flex-1 p-6 md:p-8 flex flex-col md:flex-row md:items-center gap-8">
                       <div className="flex-1 space-y-4">
                         <div>
-                          <h3 className="text-lg font-bold text-carry-darker leading-tight group-hover:text-carry-light transition-colors">{shipment.title || shipment.item_description}</h3>
+                          <h3 className="text-lg font-bold text-carry-darker leading-tight group-hover:text-carry-light transition-colors">
+                            {shipment.item_description}
+                          </h3>
                           <div className="flex items-center gap-2 mt-1.5">
                             <Badge className="bg-carry-bg text-carry-muted hover:bg-carry-bg border-none px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                              {shipment.category?.name || "General Item"}
+                              {shipment.category_name || "General Item"}
                             </Badge>
                           </div>
                         </div>

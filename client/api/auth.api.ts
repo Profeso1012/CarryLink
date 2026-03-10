@@ -57,4 +57,23 @@ export const authApi = {
       await apiClient.post("/auth/logout", { refresh_token });
     }
   },
+
+  forgotPassword: async (email: string) => {
+    const response = await apiClient.post("/auth/forgot-password", { email });
+    return response.data;
+  },
+
+  resetPassword: async (email: string, otp: string, new_password: string) => {
+    const response = await apiClient.post("/auth/reset-password", { 
+      email, 
+      otp, 
+      new_password 
+    });
+    return response.data;
+  },
+
+  resendEmailVerification: async (email: string) => {
+    const response = await apiClient.post("/auth/resend-email-verification", { email });
+    return response.data;
+  },
 };

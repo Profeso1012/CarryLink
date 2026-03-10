@@ -16,6 +16,7 @@ export interface User {
   trust_score?: number;
   profile?: {
     country_of_residence: string;
+    avatar_url?: string;
   };
 }
 

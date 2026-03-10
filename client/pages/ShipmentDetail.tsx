@@ -30,6 +30,8 @@ import {
   Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { shipmentsApi } from "@/api/shipments.api";
+import { dashboardApi } from "@/api/dashboard.api";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,8 +59,7 @@ export default function ShipmentDetail() {
   const { data: shipment, isLoading, refetch } = useQuery({
     queryKey: ["shipment", id],
     queryFn: async () => {
-      const response = await apiClient.get(`/shipments/${id}`);
-      return response.data.data;
+      return shipmentsApi.getById(id!);
     }
   });
 
@@ -66,9 +67,7 @@ export default function ShipmentDetail() {
 
   const addImagesMutation = useMutation({
     mutationFn: async (files: File[]) => {
-      const formData = new FormData();
-      files.forEach(file => formData.append('images', file));
-      return apiClient.post(`/shipments/${id}/images`, formData);
+      return shipmentsApi.addImages(id!, files);
     },
     onSuccess: () => {
       toast.success("Images added successfully!");
@@ -81,7 +80,7 @@ export default function ShipmentDetail() {
   });
 
   const deleteImageMutation = useMutation({
-    mutationFn: (imageId: string) => apiClient.delete(`/shipments/${id}/images/${imageId}`),
+    mutationFn: (imageId: string) => shipmentsApi.deleteImage(id!, imageId),
     onSuccess: () => {
       toast.success("Image removed successfully!");
       refetch();
@@ -109,9 +108,7 @@ export default function ShipmentDetail() {
     queryKey: ["my-active-listings"],
     queryFn: async () => {
       if (!isAuthenticated) return [];
-      const response = await apiClient.get("/travel-listings/mine?status=active");
-      const data = response.data.data;
-      return (Array.isArray(data) ? data : data?.listings || []) as any[];
+      return dashboardApi.getMyTrips();
     },
     enabled: isAuthenticated && isBidModalOpen
   });

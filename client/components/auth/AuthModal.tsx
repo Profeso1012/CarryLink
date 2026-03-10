@@ -6,11 +6,11 @@ import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth-store";
 import { authApi } from "@/api/auth.api";
 import { toast } from "sonner";
-import { Mail, Phone, Lock, User, Globe, Loader2, Apple, Chrome, Eye, EyeOff, Shield } from "lucide-react";
+import { Mail, Phone, Lock, User, Globe, Loader2, Eye, EyeOff, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
-type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password";
+type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password" | "forgot_password" | "forgot_otp" | "reset_password";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -28,9 +28,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("NG");
   const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(initialMode === "login");
   const [isNewUser, setIsNewUser] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Sync mode when modal opens
   React.useEffect(() => {
@@ -55,6 +58,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrors({});
     try {
       const response = await authApi.login(email, password);
       const { user, access_token, refresh_token } = response.data;
@@ -64,7 +68,110 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       toast.success("Welcome back!");
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Login failed");
+      console.log("[AUTH DEBUG] Login error:", error);
+      console.log("[AUTH DEBUG] Error response:", error.response);
+      console.log("[AUTH DEBUG] Error response data:", error.response?.data);
+      
+      const errorData = error.response?.data?.error || error.response?.data || {};
+      const errorMessage = errorData.message || error.response?.data?.message || "Login failed";
+      const errorCode = errorData.code || error.response?.data?.code;
+      
+      console.log("[AUTH DEBUG] Error code:", errorCode);
+      console.log("[AUTH DEBUG] Error message:", errorMessage);
+      
+      // Handle verification errors
+      if (errorCode === 'EMAIL_NOT_VERIFIED' || errorMessage.includes('verify your email')) {
+        toast.info("Please verify your email address to continue");
+        // Send email verification OTP
+        try {
+          await authApi.resendEmailVerification(email);
+          setStep("email_otp");
+          toast.success("Verification code sent to your email");
+        } catch (resendError) {
+          console.log("[AUTH DEBUG] Resend error:", resendError);
+          toast.error("Failed to send verification code");
+        }
+      } else if (errorCode === 'PHONE_NOT_VERIFIED' || errorMessage.includes('verify your phone')) {
+        toast.info("Please verify your phone number to continue");
+        // Send phone verification OTP
+        try {
+          await authApi.sendPhoneOTP(email);
+          setStep("phone_otp");
+          toast.success("Verification code sent to your phone");
+        } catch (resendError) {
+          console.log("[AUTH DEBUG] Resend error:", resendError);
+          toast.error("Failed to send verification code");
+        }
+      } else {
+        toast.error(errorMessage);
+        
+        // Set field-specific errors
+        if (errorCode === 'INVALID_CREDENTIALS') {
+          setErrors({ password: "Invalid email or password" });
+        } else if (errorCode === 'USER_NOT_FOUND') {
+          setErrors({ email: "No account found with this email" });
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
+    try {
+      await authApi.forgotPassword(email);
+      toast.success("If that email exists, a reset code has been sent.");
+      setStep("forgot_otp");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to send reset code");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
+    try {
+      // Verify OTP is valid before proceeding to reset password
+      setStep("reset_password");
+      toast.success("Code verified! Please set your new password.");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Invalid or expired code");
+      setErrors({ otp: "Invalid or expired code" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
+    
+    if (newPassword !== confirmPassword) {
+      setErrors({ confirmPassword: "Passwords do not match" });
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      await authApi.resetPassword(email, otp, newPassword);
+      toast.success("Password reset successfully! Please sign in with your new password.");
+      setStep("login_password");
+      setPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setOtp("");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to reset password");
+      if (error.response?.data?.code === 'PASSWORD_TOO_WEAK') {
+        setErrors({ newPassword: "Password is too weak" });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,14 +180,29 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const handleEmailOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrors({});
     try {
-      await authApi.verifyEmail(email, otp);
+      const response = await authApi.verifyEmail(email, otp);
       setOtp("");
-      // Verification successful, now verify phone
-      await authApi.sendPhoneOTP(email);
-      setStep("phone_otp");
+      
+      // Check if this is a login verification or registration flow
+      if (response.data?.user && response.data?.access_token) {
+        // User is fully verified and logged in
+        const { user, access_token, refresh_token } = response.data;
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+        setUser(user);
+        toast.success("Email verified! Welcome back!");
+        onClose();
+      } else {
+        // Registration flow - need to verify phone next
+        await authApi.sendPhoneOTP(email);
+        setStep("phone_otp");
+        toast.success("Email verified! Now verify your phone number.");
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Invalid OTP");
+      setErrors({ otp: "Invalid or expired code" });
     } finally {
       setIsLoading(false);
     }
@@ -110,23 +232,27 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const handlePhoneOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrors({});
     try {
       const response = await authApi.verifyPhone(email, otp);
       const { user, access_token, refresh_token } = response.data;
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
       setUser(user);
-      toast.success("Account verified successfully!");
-      onClose();
       
-      // Redirect to dashboard with tutorial flag for new users
       if (isNewUser) {
+        toast.success("Account verified successfully!");
+        onClose();
+        // Redirect to dashboard with tutorial flag for new users
         navigate("/account/dashboard?tutorial=true");
       } else {
+        toast.success("Phone verified! Welcome back!");
+        onClose();
         navigate("/account/dashboard");
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Invalid phone OTP");
+      setErrors({ otp: "Invalid or expired code" });
     } finally {
       setIsLoading(false);
     }
@@ -143,9 +269,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 type="email" 
                 placeholder=" "
                 value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: "" });
+                }} 
                 required 
-                className="w-full pt-[18px] pr-4 pb-[6px] pl-4 border-[1.5px] border-[#b8eaf5] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2] peer"
+                className={cn(
+                  "w-full pt-[18px] pr-4 pb-[6px] pl-4 border-[1.5px] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2] peer",
+                  errors.email ? "border-red-500" : "border-[#b8eaf5]"
+                )}
               />
               <label 
                 htmlFor="email"
@@ -159,6 +291,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               >
                 Email address
               </label>
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              )}
             </div>
             
             <button 
@@ -243,9 +378,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 type={showPassword ? "text" : "password"}
                 placeholder=" "
                 value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors({ ...errors, password: "" });
+                }} 
                 required 
-                className="w-full pt-[18px] pr-12 pb-[6px] pl-4 border-[1.5px] border-[#b8eaf5] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2]"
+                className={cn(
+                  "w-full pt-[18px] pr-12 pb-[6px] pl-4 border-[1.5px] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2]",
+                  errors.password ? "border-red-500" : "border-[#b8eaf5]"
+                )}
               />
               <label 
                 htmlFor="password"
@@ -266,6 +407,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              )}
             </div>
             <button 
               type="submit" 
@@ -279,13 +423,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 </div>
               ) : "Sign In"}
             </button>
-            <div className="text-center mt-3">
+            <div className="flex justify-between items-center mt-3 text-[13px]">
+              <button 
+                type="button" 
+                onClick={() => setStep("forgot_password")} 
+                className="bg-none border-none text-[#2d7a96] underline cursor-pointer"
+              >
+                Forgot password?
+              </button>
               <button 
                 type="button" 
                 onClick={() => setStep("email")} 
-                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
+                className="bg-none border-none text-[#2d7a96] underline cursor-pointer"
               >
-                Back
+                Back to options
               </button>
             </div>
           </form>
@@ -381,14 +532,40 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 placeholder="000000" 
                 maxLength={6}
                 value={otp} 
-                onChange={(e) => setOtp(e.target.value)} 
+                onChange={(e) => {
+                  setOtp(e.target.value);
+                  if (errors.otp) setErrors({ ...errors, otp: "" });
+                }} 
                 required 
-                className="text-center text-2xl tracking-[0.5em] font-bold h-14"
+                className={cn(
+                  "text-center text-2xl tracking-[0.5em] font-bold h-14",
+                  errors.otp ? "border-red-500" : ""
+                )}
               />
+              {errors.otp && (
+                <p className="text-red-500 text-xs text-center">{errors.otp}</p>
+              )}
             </div>
             <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Verify Email"}
             </Button>
+            
+            <div className="text-center mt-3">
+              <button 
+                type="button" 
+                onClick={async () => {
+                  try {
+                    await authApi.resendEmailVerification(email);
+                    toast.success("Verification code resent!");
+                  } catch (error) {
+                    toast.error("Failed to resend code");
+                  }
+                }}
+                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
+              >
+                Resend code
+              </button>
+            </div>
           </form>
         );
 
@@ -407,13 +584,205 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 placeholder="000000" 
                 maxLength={6}
                 value={otp} 
-                onChange={(e) => setOtp(e.target.value)} 
+                onChange={(e) => {
+                  setOtp(e.target.value);
+                  if (errors.otp) setErrors({ ...errors, otp: "" });
+                }} 
                 required 
-                className="text-center text-2xl tracking-[0.5em] font-bold h-14"
+                className={cn(
+                  "text-center text-2xl tracking-[0.5em] font-bold h-14",
+                  errors.otp ? "border-red-500" : ""
+                )}
               />
+              {errors.otp && (
+                <p className="text-red-500 text-xs text-center">{errors.otp}</p>
+              )}
             </div>
             <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Complete Verification"}
+            </Button>
+            
+            <div className="text-center mt-3">
+              <button 
+                type="button" 
+                onClick={async () => {
+                  try {
+                    await authApi.sendPhoneOTP(email);
+                    toast.success("SMS code resent!");
+                  } catch (error) {
+                    toast.error("Failed to resend code");
+                  }
+                }}
+                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
+              >
+                Resend SMS code
+              </button>
+            </div>
+          </form>
+        );
+
+      case "forgot_password":
+        return (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="relative mb-4">
+              <input 
+                id="forgot-email" 
+                type="email" 
+                placeholder=" "
+                value={email} 
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors({ ...errors, email: "" });
+                }} 
+                required 
+                className={cn(
+                  "w-full pt-[18px] pr-4 pb-[6px] pl-4 border-[1.5px] rounded-[10px] text-[15px] outline-none transition-colors bg-white text-[#0d1a1f] focus:border-[#23bcf2]",
+                  errors.email ? "border-red-500" : "border-[#b8eaf5]"
+                )}
+              />
+              <label 
+                htmlFor="forgot-email"
+                className="absolute top-1/2 left-4 -translate-y-1/2 text-[15px] text-[#aaa] pointer-events-none transition-all duration-200"
+                style={{
+                  top: email ? "10px" : "50%",
+                  fontSize: email ? "11px" : "15px",
+                  color: email ? "#23bcf2" : "#aaa",
+                  transform: email ? "translateY(0)" : "translateY(-50%)"
+                }}
+              >
+                Email address
+              </label>
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+              )}
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full p-4 bg-[#23bcf2] text-white border-none rounded-[10px] text-base font-bold cursor-pointer transition-colors disabled:bg-[#b8eaf5] disabled:cursor-default disabled:text-[#6ab8cc] hover:bg-[#1aa6d4]"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Sending...
+                </div>
+              ) : "Send Reset Code"}
+            </button>
+            
+            <div className="text-center mt-3">
+              <button 
+                type="button" 
+                onClick={() => setStep("login_password")} 
+                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
+              >
+                Back to sign in
+              </button>
+            </div>
+          </form>
+        );
+
+      case "forgot_otp":
+        return (
+          <form onSubmit={handleForgotOTP} className="space-y-4">
+            <div className="text-center space-y-2 mb-6">
+              <p className="text-sm text-gray-500">We've sent a reset code to</p>
+              <p className="font-bold text-carry-darker">{email}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reset-otp" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted text-center block">Enter 6-digit code</Label>
+              <Input 
+                id="reset-otp" 
+                type="text" 
+                placeholder="000000" 
+                maxLength={6}
+                value={otp} 
+                onChange={(e) => {
+                  setOtp(e.target.value);
+                  if (errors.otp) setErrors({ ...errors, otp: "" });
+                }} 
+                required 
+                className={cn(
+                  "text-center text-2xl tracking-[0.5em] font-bold h-14",
+                  errors.otp ? "border-red-500" : ""
+                )}
+              />
+              {errors.otp && (
+                <p className="text-red-500 text-xs text-center">{errors.otp}</p>
+              )}
+            </div>
+            <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Verify Code"}
+            </Button>
+            <div className="text-center mt-3">
+              <button 
+                type="button" 
+                onClick={() => setStep("forgot_password")} 
+                className="bg-none border-none text-[13px] text-[#2d7a96] underline cursor-pointer"
+              >
+                Back to email
+              </button>
+            </div>
+          </form>
+        );
+
+      case "reset_password":
+        return (
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-password" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">New Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input 
+                    id="new-password" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={newPassword} 
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      if (errors.newPassword) setErrors({ ...errors, newPassword: "" });
+                    }} 
+                    required 
+                    className={cn(
+                      "pl-10 h-12",
+                      errors.newPassword ? "border-red-500" : ""
+                    )}
+                  />
+                  {errors.newPassword && (
+                    <p className="text-red-500 text-xs mt-1">{errors.newPassword}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input 
+                    id="confirm-password" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={confirmPassword} 
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: "" });
+                    }} 
+                    required 
+                    className={cn(
+                      "pl-10 h-12",
+                      errors.confirmPassword ? "border-red-500" : ""
+                    )}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Reset Password"}
             </Button>
           </form>
         );
@@ -439,16 +808,22 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           <DialogHeader className="mb-7">
             <DialogTitle className="text-[22px] font-bold text-[#0d1a1f] text-center mb-1">
               {step === "login_password" ? "Welcome back" :
-               step === "email_otp" ? "Verify your email" :
-               step === "phone_otp" ? "Verify your phone" :
+               step === "email_otp" ? (isNewUser ? "Verify your email" : "Verify your email") :
+               step === "phone_otp" ? (isNewUser ? "Verify your phone" : "Verify your phone") :
                step === "register_form" ? "Complete your profile" :
+               step === "forgot_password" ? "Reset your password" :
+               step === "forgot_otp" ? "Enter reset code" :
+               step === "reset_password" ? "Create new password" :
                isLoginMode ? "Sign in to CarryLink" : "Join CarryLink"}
             </DialogTitle>
             <p className="text-center text-[#757575] text-[13px] leading-relaxed">
               {step === "login_password" ? "Enter your password to continue" :
-               step === "email_otp" ? `Please enter the code sent to ${email}` :
-               step === "phone_otp" ? "Enter the SMS code to complete verification" :
+               step === "email_otp" ? (isNewUser ? `Please enter the code sent to ${email}` : `We need to verify your email address. Code sent to ${email}`) :
+               step === "phone_otp" ? (isNewUser ? "Enter the SMS code to complete verification" : "Please verify your phone number to continue") :
                step === "register_form" ? "Tell us a bit about yourself" :
+               step === "forgot_password" ? "Enter your email address and we'll send you a reset code" :
+               step === "forgot_otp" ? "Check your email for the 6-digit reset code" :
+               step === "reset_password" ? "Choose a strong password for your account" :
                isLoginMode ? "Welcome back to CarryLink" : "Ship smarter or earn from your spare luggage. Enter your email to get started."}
             </p>
           </DialogHeader>

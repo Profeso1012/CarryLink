@@ -26,7 +26,8 @@ import {
 import AccountLayout from "@/components/layout/AccountLayout";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
-import { apiClient } from "@/lib/api-client";
+import { dashboardApi } from "@/api/dashboard.api";
+import { usersApi } from "@/api/users.api";
 import OnboardingTutorial from "@/components/tutorial/OnboardingTutorial";
 import { useSearchParams } from "react-router-dom";
 
@@ -63,25 +64,26 @@ export default function Dashboard() {
 
   const results = useQueries({
     queries: [
-      { queryKey: ["user-me"], queryFn: () => apiClient.get("/users/me").then(res => res.data.data) },
-      { queryKey: ["recent-bookings"], queryFn: () => apiClient.get("/bookings?limit=5").then(res => res.data.data) },
-      { queryKey: ["wallet-balance"], queryFn: () => apiClient.get("/wallet/balance").then(res => res.data.data) },
-      { queryKey: ["unread-notifications"], queryFn: () => apiClient.get("/notifications?unread=true").then(res => res.data.data) },
-      { queryKey: ["active-listings"], queryFn: () => apiClient.get("/travel-listings?limit=4").then(res => res.data.data.listings) }
+      { queryKey: ["user-me"], queryFn: () => usersApi.getMyProfile() },
+      { queryKey: ["dashboard-stats"], queryFn: () => dashboardApi.getStats() },
+      { queryKey: ["recent-bookings"], queryFn: () => dashboardApi.getRecentBookings(5) },
+      { queryKey: ["wallet-balance"], queryFn: () => dashboardApi.getWalletBalance() },
+      { queryKey: ["unread-notifications"], queryFn: () => dashboardApi.getNotifications(true) },
+      { queryKey: ["active-listings"], queryFn: () => dashboardApi.getTravelerRecommendations(4) }
     ]
   });
 
-  const [meData, bookings, balance, notifications, listings] = results.map(r => r.data);
+  const [meData, statsData, bookings, balance, notifications, listings] = results.map(r => r.data);
   const isLoading = results.some(r => r.isLoading);
 
   // Use meData for trust score and KYC status for better accuracy
   const displayUser = meData || user;
 
   const stats = [
-    { label: "Active Bookings", value: bookings?.length || "0", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
-    { label: "Unread Alerts", value: notifications?.length || "0", icon: Bell, color: "text-red-500", bg: "bg-red-50" },
+    { label: "Active Bookings", value: statsData?.active_shipments?.toString() || "0", icon: Package, color: "text-blue-500", bg: "bg-blue-50" },
+    { label: "Unread Alerts", value: notifications?.length?.toString() || "0", icon: Bell, color: "text-red-500", bg: "bg-red-50" },
     { label: "Wallet Balance", value: balance ? `${balance.available_balance.toFixed(2)} ${balance.currency}` : "$0.00", icon: Wallet, color: "text-purple-500", bg: "bg-purple-50" },
-    { label: "Trust Score", value: displayUser?.trust_score ? `${displayUser.trust_score}/100` : (user?.role === 'admin' ? "100/100" : "98/100"), icon: ShieldCheck, color: "text-carry-light", bg: "bg-carry-light/10" }
+    { label: "Trust Score", value: statsData?.trust_score ? `${statsData.trust_score}/100` : (displayUser?.trust_score ? `${displayUser.trust_score}/100` : "0/100"), icon: ShieldCheck, color: "text-carry-light", bg: "bg-carry-light/10" }
   ];
 
   return (

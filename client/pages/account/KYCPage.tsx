@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { ShieldCheck, ShieldAlert, Clock, Loader2, Globe, FileCheck, CheckCircle2, ChevronRight } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Clock, Loader2, Globe, FileCheck, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +51,20 @@ export default function KYCPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    initiateMutation.mutate({ id_type: idType, id_country: idCountry, id_number: idNumber });
+    
+    // Check if email is verified
+    if (!user?.email_verified) {
+      toast.error("Please verify your email address before starting KYC verification");
+      return;
+    }
+    
+    const submitData = { id_type: idType, id_country: idCountry, id_number: idNumber };
+    console.log("[KYC PAGE DEBUG] Form submitted with data:", submitData);
+    console.log("[KYC PAGE DEBUG] Current user:", user);
+    console.log("[KYC PAGE DEBUG] User email verified:", user?.email_verified);
+    console.log("[KYC PAGE DEBUG] Access token exists:", !!localStorage.getItem('access_token'));
+    
+    initiateMutation.mutate(submitData);
   };
 
   const renderStatus = () => {
@@ -121,66 +134,84 @@ export default function KYCPage() {
 
       default:
         return (
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="idCountry" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Document Country</Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select 
-                    id="idCountry" 
-                    value={idCountry} 
-                    onChange={(e) => setIdCountry(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 appearance-none"
-                  >
-                    <option value="NG">Nigeria</option>
-                    <option value="GB">United Kingdom</option>
-                    <option value="US">United States</option>
-                    <option value="CA">Canada</option>
-                  </select>
+          <div className="p-8 space-y-6">
+            {/* Email Verification Warning */}
+            {!user?.email_verified && (
+              <div className="bg-amber-50 border border-amber-200 rounded-sm p-4 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800">Email Verification Required</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Please verify your email address before starting identity verification.
+                  </p>
                 </div>
+                <Button asChild variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100">
+                  <Link to="/verify-email">Verify Email</Link>
+                </Button>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="idType" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Document Type</Label>
-                <div className="relative">
-                  <FileCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <select 
-                    id="idType" 
-                    value={idType} 
-                    onChange={(e) => setIdType(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 appearance-none"
-                  >
-                    <option value="passport">International Passport</option>
-                    <option value="national_id">National ID Card</option>
-                    <option value="drivers_license">Driver's License</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="idNumber" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Document Number (Optional)</Label>
-              <Input 
-                id="idNumber" 
-                value={idNumber} 
-                onChange={(e) => setIdNumber(e.target.value)} 
-                placeholder="A12345678"
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" 
-              disabled={initiateMutation.isPending}
-            >
-              {initiateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Start Verification"}
-            </Button>
+            )}
             
-            <p className="text-center text-xs text-gray-400 mt-6">
-              You will be redirected to Didit to securely scan your document and complete a face match.
-            </p>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="idCountry" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Document Country</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <select 
+                      id="idCountry" 
+                      value={idCountry} 
+                      onChange={(e) => setIdCountry(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 appearance-none"
+                    >
+                      <option value="NG">Nigeria</option>
+                      <option value="GB">United Kingdom</option>
+                      <option value="US">United States</option>
+                      <option value="CA">Canada</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="idType" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Document Type</Label>
+                  <div className="relative">
+                    <FileCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <select 
+                      id="idType" 
+                      value={idType} 
+                      onChange={(e) => setIdType(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 appearance-none"
+                    >
+                      <option value="passport">International Passport</option>
+                      <option value="national_id">National ID Card</option>
+                      <option value="drivers_license">Driver's License</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="idNumber" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Document Number (Optional)</Label>
+                <Input 
+                  id="idNumber" 
+                  value={idNumber} 
+                  onChange={(e) => setIdNumber(e.target.value)} 
+                  placeholder="A12345678"
+                />
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" 
+                disabled={initiateMutation.isPending || !user?.email_verified}
+              >
+                {initiateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Start Verification"}
+              </Button>
+              
+              <p className="text-center text-xs text-gray-400 mt-6">
+                You will be redirected to Didit to securely scan your document and complete a face match.
+              </p>
+            </form>
+          </div>
         );
     }
   };

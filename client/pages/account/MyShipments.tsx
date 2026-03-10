@@ -22,7 +22,8 @@ import {
   Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api-client";
+import { shipmentsApi } from "@/api/shipments.api";
+import { dashboardApi } from "@/api/dashboard.api";
 
 interface Shipment {
   id: string;
@@ -73,18 +74,15 @@ export default function MyShipments() {
   const { data: shipments, isLoading } = useQuery({
     queryKey: ["my-shipments"],
     queryFn: async () => {
-      const response = await apiClient.get("/shipments/mine");
-      // Handle response structure { success: true, data: [...] } or { success: true, data: { shipments: [...] } }
-      const data = response.data.data;
-      return (Array.isArray(data) ? data : data?.shipments || []) as Shipment[];
+      const response = await shipmentsApi.getMine();
+      return response.requests || [];
     }
   });
 
   const { data: listings } = useQuery({
     queryKey: ["verified-listings"],
     queryFn: async () => {
-      const response = await apiClient.get("/travel-listings?limit=4");
-      return response.data.data.listings;
+      return dashboardApi.getTravelerRecommendations(4);
     }
   });
 

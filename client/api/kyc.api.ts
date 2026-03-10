@@ -37,8 +37,24 @@ export const kycApi = {
     id_country: string;
     id_number?: string;
   }): Promise<InitiateKYCResponse> => {
-    const response = await apiClient.post("/kyc/initiate", data);
-    return response.data;
+    console.log("[KYC DEBUG] Initiating KYC with data:", data);
+    console.log("[KYC DEBUG] Request headers will include:", {
+      Authorization: `Bearer ${localStorage.getItem('access_token')?.substring(0, 20)}...`,
+      'Content-Type': 'application/json'
+    });
+    
+    try {
+      const response = await apiClient.post("/kyc/initiate", data);
+      console.log("[KYC DEBUG] KYC initiate success:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("[KYC DEBUG] KYC initiate failed:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      throw error;
+    }
   },
 
   getStatus: async (): Promise<KYCStatusResponse> => {

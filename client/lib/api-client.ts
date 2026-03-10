@@ -15,9 +15,9 @@ export const apiClient = axios.create({
   },
 });
 
-// Request logging for test mode
+// Request logging for test mode AND KYC debugging
 apiClient.interceptors.request.use((config) => {
-  if (IS_TEST_MODE) {
+  if (IS_TEST_MODE || config.url?.includes('kyc')) {
     console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, {
       params: config.params,
       data: config.data,
@@ -27,10 +27,10 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Response logging for test mode
+// Response logging for test mode AND KYC debugging
 apiClient.interceptors.response.use(
   (response) => {
-    if (IS_TEST_MODE) {
+    if (IS_TEST_MODE || response.config.url?.includes('kyc')) {
       console.log(`[API RESPONSE SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
         status: response.status,
         data: response.data,
@@ -39,8 +39,8 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (IS_TEST_MODE && error.config) {
-      console.error(`[API RESPONSE ERROR] ${error.config.method?.toUpperCase()} ${error.config.url}`, {
+    if (IS_TEST_MODE || error.config?.url?.includes('kyc')) {
+      console.error(`[API RESPONSE ERROR] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message,

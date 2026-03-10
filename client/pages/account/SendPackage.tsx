@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Package, Calendar, Weight, DollarSign, Info, Loader2, MapPin, Box, User, Phone, Mail, ImagePlus, CheckCircle2, AlertTriangle, XCircle, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api-client";
+import { shipmentsApi, CreateShipmentRequest } from "@/api/shipments.api";
 
 const ITEM_CATEGORIES = [
   { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Electronics' },
@@ -78,12 +78,12 @@ export default function SendPackage() {
 
     const handler = setTimeout(async () => {
       try {
-        const response = await apiClient.post<ProhibitedCheckResponse>("/items/check-prohibited", {
-          item_description: formData.item_description,
-          category_id: formData.item_category_id
-        });
+        const response = await shipmentsApi.checkProhibited(
+          formData.item_description,
+          formData.item_category_id
+        );
 
-        const data = response.data.data;
+        const data = response;
         if (data.is_prohibited) {
           setProhibitedCheck({ status: 'prohibited', message: data.message });
         } else if (data.requires_review) {
@@ -101,30 +101,11 @@ export default function SendPackage() {
   }, [formData.item_description, formData.item_category_id]);
 
   const createShipmentMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const formData = new FormData();
-
-      // Add text fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, String(value));
-        }
-      });
-
-      // Ensure numeric fields are correctly handled (backend parses them)
-      formData.set('declared_weight_kg', String(parseFloat(data.declared_weight_kg)));
-      formData.set('offered_price', String(parseFloat(data.offered_price)));
-
-      // Add images
-      uploadedFiles.forEach(file => {
-        formData.append('images', file);
-      });
-
-      const response = await apiClient.post("/shipments", formData);
-      return response.data;
+    mutationFn: async (data: CreateShipmentRequest) => {
+      return shipmentsApi.create(data, uploadedFiles);
     },
-    onSuccess: (data) => {
-      const isDraft = data.data.status === 'draft';
+    onSuccess: (shipment) => {
+      const isDraft = shipment.status === 'draft';
       if (isDraft) {
         toast.info("Shipment pending review. You'll be notified when it goes live.");
       } else {
@@ -146,7 +127,15 @@ export default function SendPackage() {
       toast.error("Cannot submit prohibited items.");
       return;
     }
-    createShipmentMutation.mutate(formData);
+    
+    // Convert string values to numbers for API
+    const apiData: CreateShipmentRequest = {
+      ...formData,
+      declared_weight_kg: parseFloat(formData.declared_weight_kg),
+      offered_price: parseFloat(formData.offered_price),
+    };
+    
+    createShipmentMutation.mutate(apiData);
   };
 
   const updateFormData = (updates: Partial<typeof formData>) => {

@@ -280,7 +280,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-1.5 text-amber-500 text-[11px] font-bold mt-auto">
                     <Star className="w-3 h-3 fill-current" />
-                    4.9 · 38 deliveries
+                    {listing.trust_score ? `${listing.trust_score.toFixed(1)}` : "N/A"} · {listing.completed_deliveries || 0} deliveries
                   </div>
                 </div>
               </div>

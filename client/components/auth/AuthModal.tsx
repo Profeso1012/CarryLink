@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Mail, Phone, Lock, User, Globe, Loader2, Eye, EyeOff, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 
 type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password" | "forgot_password" | "forgot_otp" | "reset_password";
 
@@ -34,6 +35,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [isLoginMode, setIsLoginMode] = useState(initialMode === "login");
   const [isNewUser, setIsNewUser] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<any>(null);
 
   // Sync mode when modal opens
   React.useEffect(() => {
@@ -212,6 +215,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     e.preventDefault();
     setIsLoading(true);
     try {
+      if (!recaptchaToken) {
+        toast.error("Please verify you are not a robot");
+        setIsLoading(false);
+        return;
+      }
+
       await authApi.register({
         email,
         first_name: firstName,
@@ -219,11 +228,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
         phone_number: phone,
         country_of_residence: country,
         password: password,
+        recaptcha_token: recaptchaToken,
       });
       setIsNewUser(true); // Mark as new user for tutorial
       setStep("email_otp");
+      setRecaptchaToken(null);
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Registration failed");
+      setRecaptchaToken(null);
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -492,16 +510,24 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
               <Label htmlFor="reg-password" title="Password" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Create Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input 
-                  id="reg-password" 
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required 
+                <Input
+                  id="reg-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                   className="pl-10 h-12"
                 />
               </div>
+            </div>
+
+            <div className="flex justify-center my-4">
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}
+                onChange={(token) => setRecaptchaToken(token)}
+              />
             </div>
 
             <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>

@@ -24,9 +24,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+234");
   const [country, setCountry] = useState("NG");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -37,6 +39,26 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<any>(null);
+
+  // Country codes mapping
+  const countryCodes = {
+    "NG": "+234",
+    "GB": "+44", 
+    "US": "+1",
+    "CA": "+1"
+  };
+
+  const countryNames = {
+    "NG": "🇳🇬 Nigeria",
+    "GB": "🇬🇧 United Kingdom", 
+    "US": "🇺🇸 United States",
+    "CA": "🇨🇦 Canada"
+  };
+
+  // Update phone country code when country changes
+  React.useEffect(() => {
+    setPhoneCountryCode(countryCodes[country as keyof typeof countryCodes] || "+234");
+  }, [country]);
 
   // Sync mode when modal opens
   React.useEffect(() => {
@@ -64,7 +86,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     setErrors({});
     try {
       const response = await authApi.login(email, password);
+      console.log("[AUTH DEBUG] Login success response:", response);
+      console.log("[AUTH DEBUG] Login response data:", response.data);
+      
       const { user, access_token, refresh_token } = response.data;
+      console.log("[AUTH DEBUG] User object from login:", user);
+      console.log("[AUTH DEBUG] User email_verified:", user.email_verified);
+      console.log("[AUTH DEBUG] User is_email_verified:", user.is_email_verified);
+      
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
       setUser(user);
@@ -214,22 +243,43 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const handleRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrors({});
+    
     try {
-      if (!recaptchaToken) {
+      // Validate phone number length
+      if (!phone || phone.length < 7) {
+        setErrors({ phone: "Please enter a valid phone number" });
+        setIsLoading(false);
+        return;
+      }
+
+      // Only require reCAPTCHA if site key is configured
+      if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken) {
         toast.error("Please verify you are not a robot");
         setIsLoading(false);
         return;
       }
 
-      await authApi.register({
+      // Prepare registration data
+      const registrationData = {
         email,
         first_name: firstName,
         last_name: lastName,
-        phone_number: phone,
+        phone_number: `${phoneCountryCode}${phone}`, // Combine country code with phone number
         country_of_residence: country,
         password: password,
-        recaptcha_token: recaptchaToken,
-      });
+        _gotcha: "", // Honeypot field
+      };
+
+      // Only add recaptcha_token if reCAPTCHA is enabled
+      if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+        registrationData.recaptcha_token = recaptchaToken;
+      }
+
+      console.log("[REGISTRATION DEBUG] Sending registration data:", registrationData);
+      console.log("[REGISTRATION DEBUG] reCAPTCHA site key:", import.meta.env.VITE_RECAPTCHA_SITE_KEY);
+
+      await authApi.register(registrationData);
       setIsNewUser(true); // Mark as new user for tutorial
       setStep("email_otp");
       setRecaptchaToken(null);
@@ -482,9 +532,35 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             
             <div className="space-y-2">
               <Label htmlFor="reg-phone" className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input id="reg-phone" type="tel" placeholder="+234..." value={phone} onChange={(e) => setPhone(e.target.value)} required className="pl-10 h-12" />
+              <div className="flex gap-2">
+                <div className="relative w-20">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input 
+                    value={phoneCountryCode}
+                    readOnly
+                    className="h-12 pl-10 bg-gray-50 text-gray-600 cursor-not-allowed"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input 
+                    id="reg-phone" 
+                    type="tel" 
+                    placeholder="8012345678" 
+                    value={phone} 
+                    onChange={(e) => {
+                      setPhone(e.target.value.replace(/\D/g, ''));
+                      if (errors.phone) setErrors({ ...errors, phone: "" });
+                    }} 
+                    required 
+                    className={cn(
+                      "h-12",
+                      errors.phone ? "border-red-500" : ""
+                    )}
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -495,14 +571,23 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 <select 
                   id="country" 
                   value={country} 
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="flex h-12 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    if (errors.country) setErrors({ ...errors, country: "" });
+                  }}
+                  className={cn(
+                    "flex h-12 w-full rounded-md border border-input bg-background px-10 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none",
+                    errors.country ? "border-red-500" : ""
+                  )}
                 >
-                  <option value="NG">Nigeria</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="US">United States</option>
-                  <option value="CA">Canada</option>
+                  <option value="NG">{countryNames.NG}</option>
+                  <option value="GB">{countryNames.GB}</option>
+                  <option value="US">{countryNames.US}</option>
+                  <option value="CA">{countryNames.CA}</option>
                 </select>
+                {errors.country && (
+                  <p className="text-red-500 text-xs mt-1">{errors.country}</p>
+                )}
               </div>
             </div>
 
@@ -512,22 +597,35 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="reg-password"
-                  type="password"
+                  type={showRegPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-10 h-12"
+                  className="pl-10 pr-10 h-12"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
             <div className="flex justify-center my-4">
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ""}
-                onChange={(token) => setRecaptchaToken(token)}
-              />
+              {import.meta.env.VITE_RECAPTCHA_SITE_KEY ? (
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                  onChange={(token) => setRecaptchaToken(token)}
+                />
+              ) : (
+                <div className="text-xs text-gray-500 text-center p-4 bg-gray-50 rounded">
+                  reCAPTCHA disabled in development
+                </div>
+              )}
             </div>
 
             <Button type="submit" className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" disabled={isLoading}>

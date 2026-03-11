@@ -12,8 +12,8 @@ export interface User {
   avatar_url?: string | null;
   role: "user" | "admin" | "superadmin";
   kyc_status: "not_started" | "pending" | "under_review" | "approved" | "rejected" | "expired";
-  email_verified: boolean;
-  phone_verified: boolean;
+  is_email_verified: boolean;  // Changed from email_verified to is_email_verified
+  is_phone_verified: boolean;  // Changed from phone_verified to is_phone_verified
   trust_score?: number;
   profile?: {
     country_of_residence: string;
@@ -38,6 +38,11 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       setUser: (user) => {
+        console.log("[AUTH STORE DEBUG] Setting user:", user);
+        if (user) {
+          console.log("[AUTH STORE DEBUG] User email_verified:", user.email_verified);
+          console.log("[AUTH STORE DEBUG] User is_email_verified:", user.is_email_verified);
+        }
         if (user && user.profile?.avatar_url && !user.avatar_url) {
           user.avatar_url = user.profile.avatar_url;
         }

@@ -52,16 +52,29 @@ export default function KYCPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if email is verified
-    if (!user?.email_verified) {
+    console.log("[KYC DEBUG] Current user object:", user);
+    console.log("[KYC DEBUG] User is_email_verified:", user?.is_email_verified);
+    
+    // Since users can only reach dashboard if verified, we can proceed with KYC
+    // But let's add a fallback check just in case
+    if (user?.is_email_verified === false) {
       toast.error("Please verify your email address before starting KYC verification");
       return;
     }
     
-    const submitData = { id_type: idType, id_country: idCountry, id_number: idNumber };
+    const submitData: { id_type: string; id_country: string; id_number?: string } = { 
+      id_type: idType, 
+      id_country: idCountry 
+    };
+    
+    // Only include id_number if user actually entered something
+    if (idNumber && idNumber.trim() !== '') {
+      submitData.id_number = idNumber.trim();
+    }
+    
     console.log("[KYC PAGE DEBUG] Form submitted with data:", submitData);
     console.log("[KYC PAGE DEBUG] Current user:", user);
-    console.log("[KYC PAGE DEBUG] User email verified:", user?.email_verified);
+    console.log("[KYC PAGE DEBUG] User email verified:", user?.is_email_verified);
     console.log("[KYC PAGE DEBUG] Access token exists:", !!localStorage.getItem('access_token'));
     
     initiateMutation.mutate(submitData);
@@ -135,8 +148,8 @@ export default function KYCPage() {
       default:
         return (
           <div className="p-8 space-y-6">
-            {/* Email Verification Warning */}
-            {!user?.email_verified && (
+            {/* Email Verification Warning - only show if explicitly false */}
+            {user?.is_email_verified === false && (
               <div className="bg-amber-50 border border-amber-200 rounded-sm p-4 flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-500" />
                 <div className="flex-1">
@@ -202,7 +215,7 @@ export default function KYCPage() {
               <Button 
                 type="submit" 
                 className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12" 
-                disabled={initiateMutation.isPending || !user?.email_verified}
+                disabled={initiateMutation.isPending || user?.is_email_verified === false}
               >
                 {initiateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Start Verification"}
               </Button>

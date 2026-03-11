@@ -9,6 +9,7 @@ export interface RegisterRequest {
   last_name: string;
   country_of_residence: string;
   recaptcha_token?: string;
+  _gotcha?: string; // Honeypot field
 }
 
 export interface LoginResponse {
@@ -23,6 +24,7 @@ export interface LoginResponse {
 
 export const authApi = {
   register: async (data: RegisterRequest) => {
+    console.log("[AUTH API DEBUG] Sending registration request with data:", data);
     const response = await apiClient.post("/auth/register", data);
     return response.data;
   },

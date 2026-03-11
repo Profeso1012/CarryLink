@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AccountLayout from "@/components/layout/AccountLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,46 +25,60 @@ import { useAuthStore } from "@/store/auth-store";
 
 export default function Settings() {
   const { user, setUser } = useAuthStore();
+  const queryClient = useQueryClient();
 
   // Use me query to get latest data and pre-populate fields
   const { data: meData, isLoading: isMeLoading } = useQuery({
     queryKey: ["user-me"],
     queryFn: () => apiClient.get("/users/me").then(res => res.data.data),
-    onSuccess: (data) => {
-      setFirstName(data.first_name || "");
-      setLastName(data.last_name || "");
-      setDisplayName(data.display_name || "");
-      setBio(data.bio || "");
-      setPhone(data.phone_number || "");
-    }
   });
 
   const displayUser = meData || user;
-  const [firstName, setFirstName] = useState(displayUser?.first_name || "");
-  const [lastName, setLastName] = useState(displayUser?.last_name || "");
-  const [displayName, setDisplayName] = useState(displayUser?.display_name || "");
-  const [bio, setBio] = useState(displayUser?.bio || "");
-  const [phone, setPhone] = useState(displayUser?.phone_number || "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [phone, setPhone] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   // Update local state when meData arrives
   useEffect(() => {
     if (meData) {
-      setFirstName(meData.first_name || "");
-      setLastName(meData.last_name || "");
-      setDisplayName(meData.display_name || "");
-      setBio(meData.bio || "");
+      console.log("[SETTINGS DEBUG] Received user data:", meData);
+      setFirstName(meData.profile?.first_name || meData.first_name || "");
+      setLastName(meData.profile?.last_name || meData.last_name || "");
+      setDisplayName(meData.profile?.display_name || meData.display_name || "");
+      setBio(meData.profile?.bio || meData.bio || "");
       setPhone(meData.phone_number || "");
     }
   }, [meData]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: (data: any) => apiClient.put("/users/me", data),
-    onSuccess: (data) => {
-      setUser(data.data.user || data.data.data);
+    mutationFn: (data: any) => {
+      console.log("[SETTINGS DEBUG] Updating profile with:", data);
+      return apiClient.put("/users/me", data);
+    },
+    onSuccess: (response) => {
+      console.log("[SETTINGS DEBUG] Profile update response:", response.data);
+      const updatedUser = response.data.data;
+      
+      // Update the auth store with the new user data
+      if (user) {
+        setUser({
+          ...user,
+          ...updatedUser,
+          profile: {
+            ...user.profile,
+            ...updatedUser.profile,
+            ...updatedUser
+          }
+        });
+      }
+      
       toast.success("Profile updated successfully!");
     },
     onError: (error: any) => {
+      console.error("[SETTINGS DEBUG] Profile update error:", error);
       toast.error(error.response?.data?.message || "Update failed");
     }
   });
@@ -86,14 +100,44 @@ export default function Settings() {
 
     setIsUploading(true);
     try {
+      // Send image as multipart form data to backend
       const formData = new FormData();
       formData.append("avatar", file);
 
-      const response = await apiClient.post("/users/me/avatar", formData);
-      const updatedUser = response.data.data.user || response.data.data;
-      setUser(updatedUser);
+      console.log("[SETTINGS DEBUG] Uploading avatar file:", file.name);
+      
+      const response = await apiClient.post("/users/me/avatar", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log("[SETTINGS DEBUG] Avatar upload response:", response.data);
+      const updatedUser = response.data.data;
+      console.log("[SETTINGS DEBUG] Updated user data:", updatedUser);
+      console.log("[SETTINGS DEBUG] Avatar URL from response:", updatedUser.avatar_url);
+      console.log("[SETTINGS DEBUG] Profile avatar URL:", updatedUser.profile?.avatar_url);
+      
+      // Update the auth store with the updated user data from backend
+      if (user) {
+        setUser({
+          ...user,
+          ...updatedUser,
+          avatar_url: updatedUser.avatar_url,
+          profile: {
+            ...user.profile,
+            ...updatedUser.profile,
+            avatar_url: updatedUser.avatar_url
+          }
+        });
+      }
+      
+      // Invalidate and refetch user data
+      queryClient.invalidateQueries({ queryKey: ["user-me"] });
+      
       toast.success("Avatar updated successfully!");
     } catch (error: any) {
+      console.error("Avatar upload error:", error);
       toast.error(error.response?.data?.message || "Failed to upload avatar");
     } finally {
       setIsUploading(false);
@@ -152,8 +196,12 @@ export default function Settings() {
                     <div className="w-24 h-24 rounded-full bg-carry-bg border-4 border-white shadow-sm flex items-center justify-center text-carry-muted overflow-hidden">
                       {isUploading ? (
                         <Loader2 className="w-8 h-8 animate-spin text-carry-light" />
-                      ) : displayUser?.avatar_url ? (
-                        <img src={displayUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (displayUser?.avatar_url || displayUser?.profile?.avatar_url) ? (
+                        <img 
+                          src={displayUser?.avatar_url || displayUser?.profile?.avatar_url} 
+                          alt="Avatar" 
+                          className="w-full h-full object-cover" 
+                        />
                       ) : (
                         <User className="w-10 h-10" />
                       )}

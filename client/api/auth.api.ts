@@ -8,6 +8,7 @@ export interface RegisterRequest {
   first_name: string;
   last_name: string;
   country_of_residence: string;
+  recaptcha_token?: string;
 }
 
 export interface LoginResponse {

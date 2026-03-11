@@ -33,6 +33,8 @@ export default function Settings() {
     onSuccess: (data) => {
       setFirstName(data.first_name || "");
       setLastName(data.last_name || "");
+      setDisplayName(data.display_name || "");
+      setBio(data.bio || "");
       setPhone(data.phone_number || "");
     }
   });
@@ -40,6 +42,8 @@ export default function Settings() {
   const displayUser = meData || user;
   const [firstName, setFirstName] = useState(displayUser?.first_name || "");
   const [lastName, setLastName] = useState(displayUser?.last_name || "");
+  const [displayName, setDisplayName] = useState(displayUser?.display_name || "");
+  const [bio, setBio] = useState(displayUser?.bio || "");
   const [phone, setPhone] = useState(displayUser?.phone_number || "");
   const [isUploading, setIsUploading] = useState(false);
 
@@ -48,6 +52,8 @@ export default function Settings() {
     if (meData) {
       setFirstName(meData.first_name || "");
       setLastName(meData.last_name || "");
+      setDisplayName(meData.display_name || "");
+      setBio(meData.bio || "");
       setPhone(meData.phone_number || "");
     }
   }, [meData]);
@@ -68,6 +74,8 @@ export default function Settings() {
     updateProfileMutation.mutate({
       first_name: firstName,
       last_name: lastName,
+      display_name: displayName,
+      bio: bio,
       phone_number: phone
     });
   };
@@ -202,6 +210,28 @@ export default function Settings() {
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-10" />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Display Name</Label>
+                    <Input
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="How you want to appear on the platform"
+                    />
+                    <p className="text-[10px] text-gray-400 font-medium">This is how other users will see you.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Bio</Label>
+                    <textarea
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      placeholder="Tell other users about yourself..."
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-md text-sm outline-none focus:border-carry-light focus:ring-2 focus:ring-carry-light/20 resize-none"
+                    />
+                    <p className="text-[10px] text-gray-400 font-medium">Maximum 500 characters.</p>
                   </div>
 
                   <div className="pt-4">

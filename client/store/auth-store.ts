@@ -8,6 +8,7 @@ export interface User {
   first_name: string;
   last_name: string;
   display_name?: string;
+  bio?: string;
   avatar_url?: string | null;
   role: "user" | "admin" | "superadmin";
   kyc_status: "not_started" | "pending" | "under_review" | "approved" | "rejected" | "expired";

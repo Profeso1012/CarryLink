@@ -146,12 +146,13 @@ export default function PublicProfile() {
                     {profile.trust_score}/100
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-amber-500">
-                    <Star className="w-3 h-3 fill-current" />
-                    <Star className="w-3 h-3 fill-current" />
-                    <Star className="w-3 h-3 fill-current" />
-                    <Star className="w-3 h-3 fill-current" />
-                    <Star className="w-3 h-3 fill-current" />
-                    <span className="text-[10px] font-bold text-gray-500 ml-1">(4.9/5)</span>
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-3 h-3 ${i < Math.round((profile.rating || 0) / 20) ? 'fill-current' : ''}`}
+                      />
+                    ))}
+                    <span className="text-[10px] font-bold text-gray-500 ml-1">({profile.rating ? (profile.rating / 20).toFixed(1) : 'N/A'}/5)</span>
                   </div>
                 </div>
                 <Button className="w-full bg-carry-darker hover:bg-carry-darker/90 text-white font-bold h-12 uppercase tracking-widest text-xs">
@@ -171,11 +172,11 @@ export default function PublicProfile() {
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Items Sent</span>
               </div>
               <div className="p-6 text-center border-r border-gray-100">
-                <span className="block text-xl font-black text-carry-darker">100%</span>
+                <span className="block text-xl font-black text-carry-darker">{profile?.success_rate ? `${Math.round(profile.success_rate)}%` : 'N/A'}</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Success Rate</span>
               </div>
               <div className="p-6 text-center">
-                <span className="block text-xl font-black text-carry-darker">Quick</span>
+                <span className="block text-xl font-black text-carry-darker">{profile?.response_time || 'N/A'}</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Response Time</span>
               </div>
             </div>

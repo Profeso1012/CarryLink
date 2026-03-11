@@ -148,10 +148,14 @@ export default function Header() {
                         <User className="w-4 h-4 text-carry-light" />
                       )}
                     </div>
-                    <span className="hidden lg:inline">{user?.first_name}</span>
+                    <span className="hidden lg:inline">{user?.display_name || user?.first_name}</span>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56 bg-white border-none shadow-xl rounded-sm">
-                    <DropdownMenuLabel className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">My Account</DropdownMenuLabel>
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="font-bold text-carry-darker text-sm">{user?.display_name || `${user?.first_name} ${user?.last_name}`}</p>
+                      {user?.bio && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{user.bio}</p>}
+                    </div>
+                    <DropdownMenuLabel className="text-[11px] font-bold uppercase tracking-widest text-carry-muted mt-2">My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-gray-100" />
                     <DropdownMenuItem asChild>
                       <Link to="/account/dashboard" className="cursor-pointer font-bold text-carry-darker">Dashboard</Link>

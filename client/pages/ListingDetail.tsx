@@ -285,12 +285,12 @@ export default function ListingDetail() {
                     <div className="bg-gray-50 p-3 rounded-sm text-center">
                       <div className="flex items-center justify-center gap-1 text-amber-500 mb-1">
                         <Star className="w-3.5 h-3.5 fill-current" />
-                        <span className="text-sm font-black">4.9</span>
+                        <span className="text-sm font-black">{listing.traveler.rating?.toFixed(1) || 'N/A'}</span>
                       </div>
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Avg Rating</span>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-sm text-center">
-                      <div className="text-sm font-black text-carry-darker mb-1">38</div>
+                      <div className="text-sm font-black text-carry-darker mb-1">{listing.traveler.completed_deliveries || 0}</div>
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Deliveries</span>
                     </div>
                   </div>

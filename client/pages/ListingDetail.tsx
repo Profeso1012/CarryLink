@@ -3,13 +3,13 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { 
-  MapPin, 
-  Calendar, 
-  Plane, 
-  ShieldCheck, 
-  ChevronRight, 
-  Loader2, 
+import {
+  MapPin,
+  Calendar,
+  Plane,
+  ShieldCheck,
+  ChevronRight,
+  Loader2,
   Star,
   ArrowRight,
   Info,
@@ -21,14 +21,18 @@ import {
   Share2,
   Flag,
   User,
-  ExternalLink
+  ExternalLink,
+  Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
+import { matchesApi } from "@/api/matches.api";
 import {
   Dialog,
   DialogContent,
@@ -43,8 +47,10 @@ export default function ListingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
+  const [offerMessage, setOfferMessage] = useState("");
+  const [offerAmount, setOfferAmount] = useState<string>("");
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ["listing", id],
@@ -52,6 +58,16 @@ export default function ListingDetail() {
       const response = await apiClient.get(`/travel-listings/${id}`);
       return response.data.data;
     }
+  });
+
+  const { data: matchingShipments } = useQuery({
+    queryKey: ["matches-for-listing", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const response = await matchesApi.getForListing(id, { limit: 10 });
+      return response;
+    },
+    enabled: !!id
   });
 
   const { data: myShipments } = useQuery({
@@ -62,31 +78,51 @@ export default function ListingDetail() {
       const data = response.data.data;
       return (Array.isArray(data) ? data : data?.shipments || []) as any[];
     },
-    enabled: isAuthenticated && isRequestModalOpen
+    enabled: isAuthenticated && isOfferModalOpen
   });
 
-  const initiateMatchMutation = useMutation({
-    mutationFn: (shipmentId: string) => apiClient.post("/matches", {
-      travel_listing_id: id,
-      shipment_request_id: shipmentId,
-      suggested_by: "sender"
+  const travelerOfferMutation = useMutation({
+    mutationFn: (shipmentId: string) => matchesApi.travelerOffer({
+      shipment_id: shipmentId,
+      listing_id: id!,
+      message: offerMessage
     }),
     onSuccess: () => {
-      toast.success("Request sent successfully! The traveler will be notified.");
-      setIsRequestModalOpen(false);
+      toast.success("Offer sent successfully! The sender will be notified.");
+      setIsOfferModalOpen(false);
+      setSelectedShipmentId(null);
+      setOfferMessage("");
+      setOfferAmount("");
       navigate("/account/matches");
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to send request");
+      toast.error(error.response?.data?.data?.message || "Failed to send offer");
     }
   });
 
-  const handleMakeRequest = () => {
+  const handleSendOffer = () => {
     if (!isAuthenticated) {
-      toast.error("Please login to make a request");
+      toast.error("Please login to send an offer");
       return;
     }
-    setIsRequestModalOpen(true);
+    if (!user?.kyc_status || user.kyc_status !== "approved") {
+      toast.error("You must complete KYC verification to send offers");
+      navigate("/account/kyc");
+      return;
+    }
+    setIsOfferModalOpen(true);
+  };
+
+  const handleSubmitOffer = () => {
+    if (!selectedShipmentId) {
+      toast.error("Please select a shipment");
+      return;
+    }
+    if (!offerAmount || parseFloat(offerAmount) <= 0) {
+      toast.error("Please enter a valid offer amount");
+      return;
+    }
+    travelerOfferMutation.mutate(selectedShipmentId);
   };
 
   if (isLoading) {
@@ -233,15 +269,15 @@ export default function ListingDetail() {
               {/* Action Card */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8 space-y-6">
                 <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-carry-darker">Send an Item?</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">Propose one of your shipments to this traveler and negotiate a delivery fee.</p>
+                  <h3 className="text-lg font-bold text-carry-darker">Have a Package?</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">Send an offer to carry a shipment and negotiate the delivery fee.</p>
                 </div>
-                
-                <Button 
-                  onClick={handleMakeRequest}
+
+                <Button
+                  onClick={handleSendOffer}
                   className="w-full h-14 bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs shadow-md"
                 >
-                  Make a Request
+                  Send an Offer
                 </Button>
 
                 <div className="flex items-center justify-center gap-4 pt-2">
@@ -318,46 +354,52 @@ export default function ListingDetail() {
         </div>
       </main>
 
-      {/* Request Modal */}
-      <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
+      {/* Traveler Offer Modal */}
+      <Dialog open={isOfferModalOpen} onOpenChange={setIsOfferModalOpen}>
         <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-none">
           <DialogHeader className="p-8 bg-carry-darker text-white">
-            <DialogTitle className="text-2xl font-black">Make a Request</DialogTitle>
+            <DialogTitle className="text-2xl font-black">Send an Offer</DialogTitle>
             <DialogDescription className="text-gray-300">
-              Select one of your shipments to propose to {listing.traveler.display_name}.
+              Select a shipment from the listings and propose to carry it for a negotiated fee.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="p-8 space-y-6">
+
+          <div className="p-8 space-y-6 max-h-[500px] overflow-y-auto">
+            {/* Shipment Selection */}
             <div className="space-y-4">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Your Open Shipments</label>
-              
-              {myShipments && myShipments.length > 0 ? (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
-                  {myShipments.map((shipment) => (
+              <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Select a Shipment</label>
+
+              {matchingShipments && matchingShipments.matches && matchingShipments.matches.length > 0 ? (
+                <div className="space-y-3">
+                  {matchingShipments.matches.map((match) => (
                     <button
-                      key={shipment.id}
-                      onClick={() => setSelectedShipmentId(shipment.id)}
+                      key={match.match_id}
+                      onClick={() => setSelectedShipmentId(match.match_id)}
                       className={cn(
                         "w-full flex items-center gap-4 p-4 rounded-sm border transition-all text-left group",
-                        selectedShipmentId === shipment.id 
-                          ? "border-carry-light bg-carry-bg ring-1 ring-carry-light" 
+                        selectedShipmentId === match.match_id
+                          ? "border-carry-light bg-carry-bg ring-1 ring-carry-light"
                           : "border-gray-100 bg-white hover:border-gray-200"
                       )}
                     >
                       <div className={cn(
-                        "w-10 h-10 rounded-sm flex items-center justify-center transition-colors",
-                        selectedShipmentId === shipment.id ? "bg-carry-light text-white" : "bg-gray-50 text-gray-400 group-hover:text-carry-light"
+                        "w-10 h-10 rounded-sm flex items-center justify-center transition-colors shrink-0",
+                        selectedShipmentId === match.match_id ? "bg-carry-light text-white" : "bg-gray-50 text-gray-400 group-hover:text-carry-light"
                       )}>
                         <Package className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h5 className="font-bold text-carry-darker text-sm truncate">{shipment.title || shipment.item_description}</h5>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{shipment.origin_city} &rarr; {shipment.destination_city}</p>
+                        <h5 className="font-bold text-carry-darker text-sm">
+                          {match.shipment_request?.sender_display_name || "Sender"}
+                        </h5>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">
+                          {match.shipment_request?.destination_city || "Destination"} - {match.shipment_request?.declared_weight_kg || 0}kg
+                        </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-carry-light block">{shipment.offered_price} {shipment.currency}</span>
-                        <span className="text-[9px] text-gray-400 font-bold uppercase">{shipment.declared_weight_kg}kg</span>
+                        <span className="text-xs font-black text-carry-light block">
+                          {match.payment_requested_amount ? `$${match.payment_requested_amount}` : "Match score: " + match.match_score}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -365,36 +407,78 @@ export default function ListingDetail() {
               ) : (
                 <div className="p-8 border-2 border-dashed border-gray-100 rounded-sm text-center">
                   <Package className="w-8 h-8 text-gray-200 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">You don't have any open shipment requests.</p>
-                  <Button asChild variant="link" className="text-carry-light font-bold text-xs uppercase mt-2">
-                    <Link to="/account/send-package">Create a Shipment</Link>
-                  </Button>
+                  <p className="text-sm text-gray-500">No matching shipments found for this route.</p>
                 </div>
               )}
             </div>
-            
-            <div className="p-4 bg-gray-50 rounded-sm flex gap-3">
-              <Info className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-gray-500 leading-relaxed">
-                Once sent, the traveler will review your item and can accept your request or start a conversation to discuss details.
+
+            {selectedShipmentId && (
+              <>
+                {/* Offer Amount */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Your Offer Amount</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-carry-light font-bold">$</span>
+                    <Input
+                      type="number"
+                      placeholder="Enter amount"
+                      value={offerAmount}
+                      onChange={(e) => setOfferAmount(e.target.value)}
+                      className="pl-8 h-12 border-gray-100 focus:border-carry-light"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Message (Optional)</label>
+                  <Textarea
+                    placeholder="Add a message to your offer (e.g., pickup details, handling notes)..."
+                    value={offerMessage}
+                    onChange={(e) => setOfferMessage(e.target.value)}
+                    className="min-h-[100px] border-gray-100 focus:border-carry-light resize-none"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="p-4 bg-blue-50 rounded-sm flex gap-3">
+              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-blue-700 leading-relaxed">
+                Once you send this offer, the sender will receive a notification and can accept or start negotiating with you.
               </p>
             </div>
           </div>
 
-          <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsRequestModalOpen(false)}
+          <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-3 border-t border-gray-100">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsOfferModalOpen(false);
+                setSelectedShipmentId(null);
+                setOfferMessage("");
+                setOfferAmount("");
+              }}
               className="flex-1 font-bold uppercase tracking-widest text-xs h-12"
             >
               Cancel
             </Button>
-            <Button 
-              disabled={!selectedShipmentId || initiateMatchMutation.isPending}
-              onClick={() => selectedShipmentId && initiateMatchMutation.mutate(selectedShipmentId)}
+            <Button
+              disabled={!selectedShipmentId || !offerAmount || travelerOfferMutation.isPending}
+              onClick={handleSubmitOffer}
               className="flex-1 bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs h-12"
             >
-              {initiateMatchMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Confirm Request"}
+              {travelerOfferMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" /> Send Offer
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

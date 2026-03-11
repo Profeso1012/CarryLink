@@ -4,9 +4,11 @@ import AccountLayout from "@/components/layout/AccountLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, ArrowRight, Send, Search, MoreVertical, Loader2, MessageSquare, Clock } from "lucide-react";
+import { Avatar, AvatarFallback, ArrowRight, Send, Search, MoreVertical, Loader2, MessageSquare, Clock, CreditCard, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface Conversation {
   id: string;
@@ -15,19 +17,30 @@ interface Conversation {
   last_message?: string;
   last_message_at?: string;
   unread_count: number;
+  match_id?: string;
+  booking_id?: string;
 }
 
 interface Message {
   id: string;
   sender_id: string;
-  content: string;
+  sender_name?: string;
+  content?: string;
+  message_type: string;
   created_at: string;
   is_mine: boolean;
+  // For payment_request messages
+  booking_id?: string;
+  amount?: number;
+  currency?: string;
+  payment_status?: string;
 }
 
 export default function Messages() {
+  const navigate = useNavigate();
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
+  const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
 
   const { data: conversations, isLoading: isConvLoading } = useQuery({
     queryKey: ["conversations"],
@@ -37,7 +50,7 @@ export default function Messages() {
     }
   });
 
-  const { data: messages, isLoading: isMsgLoading } = useQuery({
+  const { data: messages, isLoading: isMsgLoading, refetch: refetchMessages } = useQuery({
     queryKey: ["messages", selectedConvId],
     queryFn: async () => {
       if (!selectedConvId) return [];
@@ -48,12 +61,29 @@ export default function Messages() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (content: string) => 
+    mutationFn: (content: string) =>
       apiClient.post(`/conversations/${selectedConvId}/messages`, { content }),
     onSuccess: () => {
       setMessageText("");
-      // Refetch messages or update local state
+      refetchMessages();
     }
+  });
+
+  const initiatePaymentMutation = useMutation({
+    mutationFn: (bookingId: string) =>
+      apiClient.post(`/payments/initiate/${bookingId}`),
+    onSuccess: (data) => {
+      // Redirect to payment gateway
+      if (data.data?.payment_url) {
+        window.location.href = data.data.payment_url;
+      } else {
+        toast.success("Payment initiated. Redirecting...");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to initiate payment");
+    },
+    onSettled: () => setProcessingPaymentId(null)
   });
 
   const selectedConv = conversations?.find(c => c.id === selectedConvId);
@@ -146,16 +176,94 @@ export default function Messages() {
                   <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-carry-light" /></div>
                 ) : messages && messages.length > 0 ? (
                   messages.map((msg) => (
-                    <div key={msg.id} className={cn("flex flex-col max-w-[80%]", msg.is_mine ? "ml-auto items-end" : "mr-auto items-start")}>
-                      <div className={cn(
-                        "p-3 rounded-md text-[13px] leading-relaxed shadow-sm",
-                        msg.is_mine ? "bg-carry-light text-white rounded-tr-none" : "bg-white text-carry-darker border border-carry-light/10 rounded-tl-none"
-                      )}>
-                        {msg.content}
-                      </div>
-                      <span className="text-[9px] text-gray-400 mt-1.5 font-bold uppercase tracking-widest px-1">
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                    <div key={msg.id} className={cn("flex flex-col", msg.is_mine ? "ml-auto items-end" : "mr-auto items-start")}>
+                      {/* Text Messages */}
+                      {msg.message_type === "text" && msg.content && (
+                        <div className={cn("max-w-[80%]", "flex flex-col")}>
+                          <div className={cn(
+                            "p-3 rounded-md text-[13px] leading-relaxed shadow-sm",
+                            msg.is_mine ? "bg-carry-light text-white rounded-tr-none" : "bg-white text-carry-darker border border-carry-light/10 rounded-tl-none"
+                          )}>
+                            {msg.content}
+                          </div>
+                          <span className="text-[9px] text-gray-400 mt-1.5 font-bold uppercase tracking-widest px-1">
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* System Messages */}
+                      {msg.message_type === "system" && msg.content && (
+                        <div className="w-full py-3 px-4 text-center text-[12px] text-gray-500 italic">
+                          {msg.content}
+                        </div>
+                      )}
+
+                      {/* Payment Request Messages */}
+                      {msg.message_type === "payment_request" && (
+                        <div className={cn("max-w-[80%] w-full", "flex flex-col")}>
+                          <div className={cn(
+                            "rounded-md shadow-sm overflow-hidden",
+                            msg.is_mine ? "bg-carry-light/10 border border-carry-light" : "bg-white border border-carry-light/10"
+                          )}>
+                            <div className="p-4 space-y-4">
+                              <div className="flex items-center gap-2">
+                                <CreditCard className={cn("w-5 h-5", msg.is_mine ? "text-carry-darker" : "text-carry-light")} />
+                                <span className={cn("font-bold text-[13px]", msg.is_mine ? "text-carry-darker" : "text-carry-darker")}>
+                                  Payment Request
+                                </span>
+                              </div>
+
+                              <div className="bg-gray-50 rounded-md p-3">
+                                <div className="flex items-baseline justify-between">
+                                  <span className="text-[11px] text-gray-500 font-bold uppercase">Amount</span>
+                                  <div className="text-right">
+                                    <div className="text-2xl font-black text-carry-light">
+                                      {msg.currency === "USD" ? "$" : "₦"}{msg.amount?.toFixed(2)}
+                                    </div>
+                                    <span className="text-[9px] text-gray-400 font-bold uppercase">{msg.currency || "USD"}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {msg.payment_status === "completed" ? (
+                                <div className="flex items-center gap-2 p-3 bg-green-50 rounded-md text-green-700">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span className="text-[12px] font-bold uppercase">Payment Complete</span>
+                                </div>
+                              ) : !msg.is_mine ? (
+                                <Button
+                                  onClick={() => {
+                                    if (msg.booking_id) {
+                                      setProcessingPaymentId(msg.booking_id);
+                                      initiatePaymentMutation.mutate(msg.booking_id);
+                                    }
+                                  }}
+                                  disabled={initiatePaymentMutation.isPending || processingPaymentId === msg.booking_id}
+                                  className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12 text-sm uppercase tracking-widest"
+                                >
+                                  {initiatePaymentMutation.isPending && processingPaymentId === msg.booking_id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CreditCard className="w-4 h-4 mr-2" /> Pay Now
+                                    </>
+                                  )}
+                                </Button>
+                              ) : (
+                                <div className="text-center p-3 bg-gray-50 rounded-md">
+                                  <span className="text-[11px] text-gray-500 font-bold uppercase">Awaiting payment from sender</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-[9px] text-gray-400 mt-1.5 font-bold uppercase tracking-widest px-1">
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))
                 ) : (

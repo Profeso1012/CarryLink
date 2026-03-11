@@ -1,19 +1,20 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import AccountLayout from "@/components/layout/AccountLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { 
-  Package, 
-  MapPin, 
-  Calendar, 
-  User, 
-  ShieldCheck, 
-  ArrowRight, 
-  Loader2, 
+import {
+  Package,
+  MapPin,
+  Calendar,
+  User,
+  ShieldCheck,
+  ArrowRight,
+  Loader2,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -27,11 +28,13 @@ import { apiClient } from "@/lib/api-client";
 
 interface Booking {
   id: string;
-  shipment_title: string;
-  shipment_description: string;
+  match_id?: string;
+  conversation_id?: string;
+  shipment_title?: string;
+  shipment_description?: string;
   origin_city: string;
   destination_city: string;
-  status: "pending_payment" | "payment_held" | "in_transit" | "delivered" | "completed" | "disputed";
+  status: "pending_payment" | "payment_held" | "in_transit" | "delivered" | "completed" | "disputed" | "payment_processing";
   total_amount: number;
   currency: string;
   traveler_name: string;
@@ -41,6 +44,7 @@ interface Booking {
 
 export default function BookingDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [deliveryOtp, setDeliveryOtp] = useState("");
 
   const { data: booking, isLoading } = useQuery({
@@ -247,7 +251,17 @@ export default function BookingDetail() {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full flex items-center gap-2 font-bold text-xs uppercase tracking-widest h-10">
+                <Button
+                  onClick={() => {
+                    if (booking.conversation_id) {
+                      navigate(`/account/messages?conversation=${booking.conversation_id}`);
+                    } else {
+                      toast.error("No conversation found for this booking");
+                    }
+                  }}
+                  variant="outline"
+                  className="w-full flex items-center gap-2 font-bold text-xs uppercase tracking-widest h-10 hover:text-carry-light hover:border-carry-light"
+                >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Open Chat
                 </Button>

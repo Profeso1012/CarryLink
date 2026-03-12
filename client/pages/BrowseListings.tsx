@@ -63,7 +63,15 @@ export default function BrowseListings() {
       const listingsWithUserData = await Promise.all(
         listings.map(async (listing: any) => {
           try {
-            const userProfile = await usersApi.getPublicProfile(listing.traveler_id);
+            // Use user_id from API response to fetch user profile
+            const userId = listing.user_id || listing.traveler_id;
+
+            // Check if traveler data is already in listing
+            if (listing.traveler) {
+              return listing;
+            }
+
+            const userProfile = await usersApi.getPublicProfile(userId);
             return {
               ...listing,
               traveler: {
@@ -76,11 +84,12 @@ export default function BrowseListings() {
               }
             };
           } catch (error) {
-            console.error(`Failed to fetch user ${listing.traveler_id}:`, error);
+            const userId = listing.user_id || listing.traveler_id;
+            console.error(`Failed to fetch user ${userId}:`, error);
             return {
               ...listing,
-              traveler: {
-                id: listing.traveler_id,
+              traveler: listing.traveler || {
+                id: userId,
                 display_name: "Unknown Traveler",
                 avatar_url: null,
                 trust_score: 0,

@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import PaystackButton from "@/components/payments/PaystackButton";
+import StripePaymentWidget from "@/components/payments/StripePaymentWidget";
 
 interface Booking {
   id: string;
@@ -145,20 +147,57 @@ export default function BookingDetail() {
 
             {/* Actions Based on Status */}
             {booking.status === "pending_payment" && (
-              <Card className="border-none shadow-lg bg-carry-darker text-white p-8">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-carry-light/20 flex items-center justify-center text-carry-light">
-                      <CreditCard className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">Payment Required</h3>
-                      <p className="text-white/60 text-sm">Secure the delivery by funding the escrow.</p>
-                    </div>
+              <Card className="border-none shadow-lg p-8 bg-white space-y-8">
+                <div className="flex items-center gap-4 pb-8 border-b border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light">
+                    <CreditCard className="w-6 h-6" />
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button className="flex-1 bg-carry-light hover:bg-carry-light/90 text-white font-bold h-12">Pay with Stripe</Button>
-                    <Button className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold h-12">Pay with Paystack</Button>
+                  <div>
+                    <h3 className="text-lg font-bold text-carry-darker">Payment Required</h3>
+                    <p className="text-gray-500 text-sm">Secure the delivery by funding the escrow. Amount: {booking.total_amount} {booking.currency}</p>
+                  </div>
+                </div>
+
+                {/* Tabs for Payment Methods */}
+                <div className="space-y-6">
+                  <div className="flex gap-4 border-b border-gray-100">
+                    <button className="pb-4 px-4 font-bold text-sm text-carry-light border-b-2 border-carry-light uppercase tracking-widest">
+                      Paystack
+                    </button>
+                    <button className="pb-4 px-4 font-bold text-sm text-gray-400 hover:text-carry-darker uppercase tracking-widest">
+                      Stripe
+                    </button>
+                  </div>
+
+                  {/* Paystack Payment */}
+                  <div className="space-y-4">
+                    <p className="text-sm text-gray-600">
+                      You will be redirected to Paystack to complete your payment securely.
+                    </p>
+                    <PaystackButton bookingId={id!} />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-sm">
+                  <div className="flex gap-3">
+                    <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-blue-700 leading-relaxed">
+                      Your payment is protected by escrow. Funds will only be released to the traveler after successful delivery confirmation.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {booking.status === "payment_processing" && (
+              <Card className="border-none shadow-md border-l-[6px] border-amber-500 bg-white p-8">
+                <div className="space-y-6 text-center py-8">
+                  <Loader2 className="w-12 h-12 animate-spin text-carry-light mx-auto" />
+                  <div>
+                    <h3 className="text-lg font-bold text-carry-darker">Processing Payment</h3>
+                    <p className="text-gray-500 text-sm mt-2">
+                      Your payment is being processed. This may take a few moments. Please do not refresh the page.
+                    </p>
                   </div>
                 </div>
               </Card>

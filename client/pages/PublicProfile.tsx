@@ -41,12 +41,14 @@ export default function PublicProfile() {
     queryKey: ["user-activity", id],
     queryFn: async () => {
       const [listingsRes, shipmentsRes] = await Promise.all([
-        apiClient.get(`travel-listings?traveler_id=${id}&status=active`),
+        apiClient.get(`travel-listings/browse?user_id=${id}&status=active`),
         apiClient.get(`shipments?sender_id=${id}&status=open`)
       ]);
       return {
         listings: listingsRes.data.data?.listings || [],
-        shipments: shipmentsRes.data.data?.shipments || []
+        shipments: shipmentsRes.data.data?.shipments || [],
+        listingsCount: listingsRes.data.meta?.total || 0,
+        shipmentsCount: shipmentsRes.data.meta?.total || 0
       };
     },
     enabled: !!id
@@ -164,11 +166,11 @@ export default function PublicProfile() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 border-t border-gray-100">
               <div className="p-6 text-center border-r border-gray-100">
-                <span className="block text-xl font-black text-carry-darker">{profile.total_deliveries_as_traveler || 0}</span>
+                <span className="block text-xl font-black text-carry-darker">{profile.total_trips_as_traveler || profile.total_deliveries_as_traveler || 0}</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Travels Done</span>
               </div>
               <div className="p-6 text-center border-r border-gray-100">
-                <span className="block text-xl font-black text-carry-darker">{profile.total_deliveries_as_sender || 0}</span>
+                <span className="block text-xl font-black text-carry-darker">{profile.total_shipments_as_sender || profile.total_deliveries_as_sender || 0}</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Items Sent</span>
               </div>
               <div className="p-6 text-center border-r border-gray-100">
@@ -176,8 +178,8 @@ export default function PublicProfile() {
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Success Rate</span>
               </div>
               <div className="p-6 text-center">
-                <span className="block text-xl font-black text-carry-darker">{profile?.response_time || 'N/A'}</span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Response Time</span>
+                <span className="block text-xl font-black text-carry-darker">{profile?.average_rating ? `${profile.average_rating.toFixed(1)}/5` : 'N/A'}</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Average Rating</span>
               </div>
             </div>
           </div>
@@ -187,23 +189,23 @@ export default function PublicProfile() {
             <Tabs defaultValue="listings" className="w-full" onValueChange={setActiveTab}>
               <div className="flex items-center justify-between border-b border-gray-100 pb-px">
                 <TabsList className="bg-transparent h-auto p-0 gap-8">
-                  <TabsTrigger 
-                    value="listings" 
+                  <TabsTrigger
+                    value="listings"
                     className="bg-transparent border-none p-0 pb-4 rounded-none font-bold text-[11px] uppercase tracking-widest text-gray-400 data-[state=active]:text-carry-light data-[state=active]:shadow-[0_2px_0_0_#1DA1F2] transition-all"
                   >
                     Active Listings ({userActivity?.listings?.length || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="shipments" 
+                  <TabsTrigger
+                    value="shipments"
                     className="bg-transparent border-none p-0 pb-4 rounded-none font-bold text-[11px] uppercase tracking-widest text-gray-400 data-[state=active]:text-carry-light data-[state=active]:shadow-[0_2px_0_0_#1DA1F2] transition-all"
                   >
                     Active Shipments ({userActivity?.shipments?.length || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="reviews" 
+                  <TabsTrigger
+                    value="reviews"
                     className="bg-transparent border-none p-0 pb-4 rounded-none font-bold text-[11px] uppercase tracking-widest text-gray-400 data-[state=active]:text-carry-light data-[state=active]:shadow-[0_2px_0_0_#1DA1F2] transition-all"
                   >
-                    Reviews (42)
+                    Reviews ({profile?.review_count || 0})
                   </TabsTrigger>
                 </TabsList>
               </div>

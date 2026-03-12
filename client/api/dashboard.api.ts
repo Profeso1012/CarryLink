@@ -72,8 +72,9 @@ export const dashboardApi = {
 
   // Get traveler recommendations based on user's location/preferences
   getTravelerRecommendations: async (limit = 4): Promise<TravelerRecommendation[]> => {
-    const response = await apiClient.get(`/travel-listings/recommendations?limit=${limit}`);
-    return response.data.data;
+    // Use the regular travel listings endpoint with filters instead of non-existent recommendations
+    const response = await apiClient.get(`/travel-listings?limit=${limit}&status=active`);
+    return response.data.data.listings || response.data.data;
   },
 
   // Get wallet balance
@@ -106,11 +107,9 @@ export const dashboardApi = {
 
   // Get matches for user's shipments
   getMyMatches: async (type: "senders" | "travelers"): Promise<any[]> => {
-    const endpoint = type === "senders" 
-      ? "/matches/for-my-shipments" 
-      : "/matches/interested-in-my-trips";
-    const response = await apiClient.get(endpoint);
-    return response.data.data;
+    // For now, return empty array since we need specific shipment/listing IDs for the matching endpoints
+    // This should be called with specific IDs from the shipments/listings pages
+    return [];
   },
 
   // Get notifications

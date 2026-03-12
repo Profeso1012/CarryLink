@@ -3,6 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { travelListingsApi } from "@/api/travel-listings.api";
+import { usersApi } from "@/api/users.api";
+import { useEffect } from "react";
 import { 
   Search, 
   MapPin, 
@@ -17,7 +20,6 @@ import {
   Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -38,20 +40,62 @@ export default function BrowseListings() {
     sort: "newest"
   });
 
+  const [listingsWithUsers, setListingsWithUsers] = useState<any[]>([]);
+
   const { data, isLoading } = useQuery({
     queryKey: ["browse-listings", filters],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value.toString());
-      });
-      const response = await apiClient.get(`/travel-listings?${params.toString()}`);
-      return response.data;
+      return travelListingsApi.browse(filters);
     }
   });
 
   const listings = data?.data?.listings || [];
   const meta = data?.meta || { total: 0, page: 1, limit: 10 };
+
+  // Fetch user profiles for each listing
+  useEffect(() => {
+    const fetchUsersForListings = async () => {
+      if (!listings.length) {
+        setListingsWithUsers([]);
+        return;
+      }
+
+      const listingsWithUserData = await Promise.all(
+        listings.map(async (listing: any) => {
+          try {
+            const userProfile = await usersApi.getPublicProfile(listing.traveler_id);
+            return {
+              ...listing,
+              traveler: {
+                id: userProfile.id,
+                display_name: userProfile.display_name,
+                avatar_url: userProfile.avatar_url,
+                trust_score: userProfile.trust_score,
+                total_deliveries_as_traveler: userProfile.total_deliveries || 0,
+                badges: userProfile.badges?.map((b: any) => b.type) || []
+              }
+            };
+          } catch (error) {
+            console.error(`Failed to fetch user ${listing.traveler_id}:`, error);
+            return {
+              ...listing,
+              traveler: {
+                id: listing.traveler_id,
+                display_name: "Unknown Traveler",
+                avatar_url: null,
+                trust_score: 0,
+                total_deliveries_as_traveler: 0,
+                badges: []
+              }
+            };
+          }
+        })
+      );
+      setListingsWithUsers(listingsWithUserData);
+    };
+
+    fetchUsersForListings();
+  }, [listings]);
 
   return (
     <div className="min-h-screen bg-carry-bg flex flex-col">
@@ -147,7 +191,7 @@ export default function BrowseListings() {
                 <Loader2 className="w-10 h-10 animate-spin text-carry-light" />
               </div>
             ) : listings.length > 0 ? (
-              listings.map((listing: any) => (
+              listingsWithUsers.map((listing: any) => (
                 <div 
                   key={listing.id} 
                   className="bg-white rounded-sm border border-carry-light/10 shadow-sm hover:shadow-md transition-all group overflow-hidden"

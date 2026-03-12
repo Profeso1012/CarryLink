@@ -23,19 +23,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shipmentsApi } from "@/api/shipments.api";
-import { dashboardApi } from "@/api/dashboard.api";
+import { matchingApi } from "@/api/matching.api";
+import { formatTrustScore, safeNumber } from "@/lib/format-utils";
 
 interface Shipment {
   id: string;
-  title?: string;
   item_description: string;
   origin_city: string;
   origin_country: string;
   destination_city: string;
   destination_country: string;
   status: string;
-  weight: number;
-  declared_weight_kg?: number;
+  declared_weight_kg: number;
   offered_price: number;
   currency: string;
   created_at: string;
@@ -44,19 +43,23 @@ interface Shipment {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
+    under_review: "bg-amber-100 text-amber-700",
     open: "bg-green-100 text-green-700",
-    pending_payment: "bg-amber-100 text-amber-700",
+    matched: "bg-blue-100 text-blue-700",
     in_transit: "bg-blue-100 text-blue-700",
     delivered: "bg-carry-light/10 text-carry-light",
+    completed: "bg-green-100 text-green-700",
     cancelled: "bg-gray-100 text-gray-500",
     disputed: "bg-red-100 text-red-700"
   };
 
   const labels: Record<string, string> = {
+    under_review: "Under Review",
     open: "Open Request",
-    pending_payment: "Payment Required",
+    matched: "Matched",
     in_transit: "In Transit",
     delivered: "Delivered",
+    completed: "Completed",
     cancelled: "Cancelled",
     disputed: "Disputed"
   };
@@ -80,21 +83,21 @@ export default function MyShipments() {
   });
 
   const { data: listings } = useQuery({
-    queryKey: ["verified-listings"],
+    queryKey: ["verified-travelers-matches"],
     queryFn: async () => {
-      return dashboardApi.getTravelerRecommendations(4);
+      return matchingApi.getAllMatchesForMyShipments(4);
     }
   });
 
   const filteredShipments = shipments?.filter(s => {
     if (activeTab === "all") return true;
-    if (activeTab === "pending") return s.status === "open" || s.status === "pending_payment";
+    if (activeTab === "pending") return s.status === "open" || s.status === "under_review";
     return s.status === activeTab;
   }) || [];
 
   const counts = {
     all: shipments?.length || 0,
-    pending: shipments?.filter(s => s.status === "open" || s.status === "pending_payment").length || 0,
+    pending: shipments?.filter(s => s.status === "open" || s.status === "under_review").length || 0,
     in_transit: shipments?.filter(s => s.status === "in_transit").length || 0,
     delivered: shipments?.filter(s => s.status === "delivered").length || 0,
     disputed: shipments?.filter(s => s.status === "disputed").length || 0,
@@ -204,7 +207,7 @@ export default function MyShipments() {
                             )}
                           </div>
                           <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="font-bold text-carry-darker text-[14px] truncate">{shipment.item_description || shipment.title}</span>
+                            <span className="font-bold text-carry-darker text-[14px] truncate">{shipment.item_description}</span>
                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">ID: {shipment.id.slice(0, 8)}</span>
                           </div>
                         </div>
@@ -276,37 +279,55 @@ export default function MyShipments() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {listings && listings.length > 0 ? listings.map((listing: any) => (
-              <div key={listing.id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
-                <div className="relative h-40">
-                  <img 
-                    src={listing.user?.avatar_url || `https://images.unsplash.com/photo-${listing.id.length > 10 ? '1573496359142-b8d87734a5a2' : '1560250097-0b93528c311a'}?w=400&h=300&fit=crop&q=80`} 
-                    alt={listing.user?.first_name}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-3 right-3 bg-carry-light text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm">Verified</span>
-                </div>
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="font-bold text-carry-darker text-[15px] mb-2">{listing.user?.first_name} {listing.user?.last_name}</div>
-                  <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
-                    <MapPin className="w-3 h-3" />
-                    {listing.origin_city} &rarr; {listing.destination_city}
+            {listings && listings.length > 0 ? listings.map((match: any) => {
+              const listing = match.travel_listing;
+              if (!listing) return null;
+              
+              return (
+                <div key={match.match_id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
+                  <div className="relative h-40">
+                    <img 
+                      src={listing.traveler?.avatar_url || `https://images.unsplash.com/photo-${listing.id.length > 10 ? '1573496359142-b8d87734a5a2' : '1560250097-0b93528c311a'}?w=400&h=300&fit=crop&q=80`} 
+                      alt={listing.traveler?.display_name}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className={cn(
+                      "absolute top-3 right-3 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm",
+                      match.status === 'suggested' ? 'bg-blue-100 text-blue-700' :
+                      match.status === 'sender_requested' ? 'bg-amber-100 text-amber-700' :
+                      match.status === 'negotiating' ? 'bg-green-100 text-green-700' :
+                      match.status === 'payment_requested' ? 'bg-purple-100 text-purple-700' :
+                      'bg-carry-light text-white'
+                    )}>
+                      {match.status === 'suggested' ? 'Suggested' :
+                       match.status === 'sender_requested' ? 'Requested' :
+                       match.status === 'negotiating' ? 'Negotiating' :
+                       match.status === 'payment_requested' ? 'Payment Req.' :
+                       'Matched'}
+                    </span>
                   </div>
-                  <hr className="border-gray-100 mb-4" />
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-bold">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="font-bold text-carry-darker text-[15px] mb-2">{listing.traveler?.display_name}</div>
+                    <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
+                      <MapPin className="w-3 h-3" />
+                      {listing.origin_city} &rarr; {listing.destination_city}
                     </div>
-                    <div className="text-carry-light font-bold text-[13px]">${listing.price_per_kg || 10}/kg</div>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-amber-500 text-[11px] font-bold mt-auto">
-                    <Star className="w-3 h-3 fill-current" />
-                    {listing.trust_score ? `${listing.trust_score.toFixed(1)}` : "N/A"} · {listing.completed_deliveries || 0} deliveries
+                    <hr className="border-gray-100 mb-4" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-bold">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                      <div className="text-carry-light font-bold text-[13px]">${listing.price_per_kg}/kg</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-amber-500 text-[11px] font-bold mt-auto">
+                      <Star className="w-3 h-3 fill-current" />
+                      {formatTrustScore(listing.traveler?.trust_score)} · {safeNumber(listing.traveler?.total_deliveries_as_traveler)} deliveries
+                    </div>
                   </div>
                 </div>
-              </div>
-            )) : (
+              );
+            }) : (
               [1, 2, 3, 4].map((i) => (
                 <div key={i} className="bg-gray-50 h-64 rounded-sm animate-pulse"></div>
               ))

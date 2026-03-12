@@ -4,6 +4,8 @@ import { Menu, X, Search, Bell, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthModal from "../auth/AuthModal";
 import { useAuthStore } from "@/store/auth-store";
+import { useQuery } from "@tanstack/react-query";
+import { usersApi } from "@/api/users.api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,12 +26,22 @@ export default function Header() {
 
   const { isAuthenticated, user, logout, setUser } = useAuthStore();
 
+  // Fetch fresh user data to ensure header shows updated info
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: () => usersApi.getMyProfile(),
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const displayUser = currentUser || user;
+
   useEffect(() => {
     // Legacy support/normalization for avatar_url
-    if (user && user.profile?.avatar_url && !user.avatar_url) {
-      setUser({ ...user, avatar_url: user.profile.avatar_url });
+    if (displayUser && displayUser.profile?.avatar_url && !displayUser.avatar_url) {
+      setUser({ ...displayUser, avatar_url: displayUser.profile.avatar_url });
     }
-  }, [user, setUser]);
+  }, [displayUser, setUser]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -138,22 +150,22 @@ export default function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger className="relative flex items-center px-[22px] text-white/90 text-[15px] font-normal no-underline whitespace-nowrap transition-colors group hover:text-carry-light">
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-carry-light/20 flex items-center justify-center mr-2">
-                      {user?.avatar_url ? (
+                      {displayUser?.profile?.avatar_url || displayUser?.avatar_url ? (
                         <img
-                          src={user.avatar_url}
-                          alt={`${user.first_name} ${user.last_name}`}
+                          src={displayUser.profile?.avatar_url || displayUser.avatar_url}
+                          alt={`${displayUser.profile?.first_name || displayUser.first_name} ${displayUser.profile?.last_name || displayUser.last_name}`}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <User className="w-4 h-4 text-carry-light" />
                       )}
                     </div>
-                    <span className="hidden lg:inline">{user?.display_name || user?.first_name}</span>
+                    <span className="hidden lg:inline">{displayUser?.profile?.display_name || displayUser?.display_name || displayUser?.profile?.first_name || displayUser?.first_name}</span>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56 bg-white border-none shadow-xl rounded-sm">
                     <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="font-bold text-carry-darker text-sm">{user?.display_name || `${user?.first_name} ${user?.last_name}`}</p>
-                      {user?.bio && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{user.bio}</p>}
+                      <p className="font-bold text-carry-darker text-sm">{displayUser?.profile?.display_name || displayUser?.display_name || `${displayUser?.profile?.first_name || displayUser?.first_name} ${displayUser?.profile?.last_name || displayUser?.last_name}`}</p>
+                      {(displayUser?.profile?.bio || displayUser?.bio) && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{displayUser.profile?.bio || displayUser.bio}</p>}
                     </div>
                     <DropdownMenuLabel className="text-[11px] font-bold uppercase tracking-widest text-carry-muted mt-2">My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-gray-100" />

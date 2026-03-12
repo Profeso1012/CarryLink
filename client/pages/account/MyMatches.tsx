@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import AccountLayout from "@/components/layout/AccountLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,28 +46,30 @@ export default function MyMatches() {
   const [rejectReason, setRejectReason] = useState("");
 
   // Get all shipments to fetch matches for them
-  const { data: myShipments } = useQuery({
+  const { data: myShipments, isLoading: shipmentsDataLoading } = useQuery({
     queryKey: ["my-shipments"],
     queryFn: async () => {
       try {
-        const response = await apiClient.get("/shipments/mine");
+        const response = await apiClient.get("shipments/mine");
         const data = response.data.data;
-        return (Array.isArray(data) ? data : data?.shipments || []) as any[];
-      } catch {
+        return (Array.isArray(data) ? data : data?.requests || data?.shipments || []) as any[];
+      } catch (error) {
+        console.error("Failed to fetch shipments:", error);
         return [];
       }
     },
   });
 
   // Get all listings to fetch matches for them
-  const { data: myListings } = useQuery({
+  const { data: myListings, isLoading: listingsDataLoading } = useQuery({
     queryKey: ["my-listings"],
     queryFn: async () => {
       try {
-        const response = await apiClient.get("/travel-listings/mine");
+        const response = await apiClient.get("travel-listings/mine");
         const data = response.data.data;
         return (Array.isArray(data) ? data : data?.listings || []) as any[];
-      } catch {
+      } catch (error) {
+        console.error("Failed to fetch listings:", error);
         return [];
       }
     },
@@ -80,13 +82,19 @@ export default function MyMatches() {
       if (!myShipments || myShipments.length === 0) return [];
       
       const allMatches = [];
-      for (const shipment of myShipments) {
-        const response = await matchesApi.getForShipment(shipment.id);
-        allMatches.push(...(response.matches || []));
+      for (const shipment of myShipments.slice(0, 5)) { // Limit to avoid too many requests
+        try {
+          const response = await matchesApi.getForShipment(shipment.id, { limit: 10 });
+          if (response && response.matches) {
+            allMatches.push(...response.matches);
+          }
+        } catch (error) {
+          console.warn(`Failed to get matches for shipment ${shipment.id}:`, error);
+        }
       }
       return allMatches;
     },
-    enabled: activeTab === "shipments" && !!myShipments,
+    enabled: activeTab === "shipments" && !!myShipments && myShipments.length > 0,
   });
 
   // Fetch matches for listings (sender requests)
@@ -96,13 +104,19 @@ export default function MyMatches() {
       if (!myListings || myListings.length === 0) return [];
       
       const allMatches = [];
-      for (const listing of myListings) {
-        const response = await matchesApi.getForListing(listing.id);
-        allMatches.push(...(response.matches || []));
+      for (const listing of myListings.slice(0, 5)) { // Limit to avoid too many requests
+        try {
+          const response = await matchesApi.getForListing(listing.id, { limit: 10 });
+          if (response && response.matches) {
+            allMatches.push(...response.matches);
+          }
+        } catch (error) {
+          console.warn(`Failed to get matches for listing ${listing.id}:`, error);
+        }
       }
       return allMatches;
     },
-    enabled: activeTab === "listings" && !!myListings,
+    enabled: activeTab === "listings" && !!myListings && myListings.length > 0,
   });
 
   const acceptMatchMutation = useMutation({
@@ -150,7 +164,7 @@ export default function MyMatches() {
   });
 
   const matches = activeTab === "shipments" ? shipmentMatches : listingMatches;
-  const isLoading = activeTab === "shipments" ? shipmentsLoading : listingsLoading;
+  const isLoading = activeTab === "shipments" ? (shipmentsLoading || shipmentsDataLoading) : (listingsLoading || listingsDataLoading);
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; color: string }> = {
@@ -436,9 +450,24 @@ export default function MyMatches() {
             <h3 className="text-xl font-bold text-carry-darker">No matches yet</h3>
             <p className="text-gray-500 max-w-sm">
               {activeTab === "shipments"
-                ? "Travelers will send offers for your shipments once you post them."
-                : "Senders will request to use your listings once they post their shipments."}
+                ? myShipments && myShipments.length > 0 
+                  ? "No travelers have offered to carry your shipments yet. Try adjusting your pricing or route details."
+                  : "You haven't posted any shipments yet. Create a shipment request to see potential matches with travelers."
+                : myListings && myListings.length > 0
+                  ? "No senders have requested to use your travel listings yet. Make sure your routes and pricing are competitive."
+                  : "You haven't posted any travel listings yet. Create a travel listing to see potential matches with senders."}
             </p>
+            <div className="flex gap-3 pt-4">
+              {activeTab === "shipments" ? (
+                <Link to="/account/send-package" className="px-6 py-3 bg-carry-light text-white rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-carry-light/90 transition-all">
+                  Post a Shipment
+                </Link>
+              ) : (
+                <Link to="/account/post-trip" className="px-6 py-3 bg-carry-light text-white rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-carry-light/90 transition-all">
+                  Post a Trip
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -151,37 +151,37 @@ export interface MatchCancelResponse {
 export const matchesApi = {
   // Sender initiates a match with a traveler
   senderRequest: async (payload: SenderRequestPayload): Promise<SenderRequestResponse> => {
-    const response = await apiClient.post("/api/v1/matches/sender-request", payload);
+    const response = await apiClient.post("matches/sender-request", payload);
     return response.data;
   },
 
   // Traveler initiates a match with a sender
   travelerOffer: async (payload: TravelerOfferPayload): Promise<TravelerOfferResponse> => {
-    const response = await apiClient.post("/api/v1/matches/traveler-offer", payload);
+    const response = await apiClient.post("matches/traveler-offer", payload);
     return response.data;
   },
 
   // Accept a match (either party accepts the approach)
   accept: async (matchId: string): Promise<MatchAcceptResponse> => {
-    const response = await apiClient.post(`/api/v1/matches/${matchId}/accept`);
+    const response = await apiClient.post(`matches/${matchId}/accept`);
     return response.data;
   },
 
   // Reject a match
   reject: async (matchId: string, payload: MatchRejectPayload): Promise<MatchRejectResponse> => {
-    const response = await apiClient.post(`/api/v1/matches/${matchId}/reject`, payload);
+    const response = await apiClient.post(`matches/${matchId}/reject`, payload);
     return response.data;
   },
 
   // Request payment (traveler sends payment request)
   requestPayment: async (matchId: string, payload: PaymentRequestPayload): Promise<PaymentRequestResponse> => {
-    const response = await apiClient.post(`/api/v1/matches/${matchId}/request-payment`, payload);
+    const response = await apiClient.post(`matches/${matchId}/request-payment`, payload);
     return response.data;
   },
 
   // Cancel a match
   cancel: async (matchId: string, payload: MatchCancelPayload): Promise<MatchCancelResponse> => {
-    const response = await apiClient.post(`/api/v1/matches/${matchId}/cancel`, payload);
+    const response = await apiClient.post(`matches/${matchId}/cancel`, payload);
     return response.data;
   },
 
@@ -199,7 +199,7 @@ export const matchesApi = {
     if (options?.status) params.append("status", options.status);
 
     const response = await apiClient.get(
-      `/api/v1/matches/for-shipment/${shipmentId}?${params.toString()}`
+      `matches/for-shipment/${shipmentId}?${params.toString()}`
     );
     return response.data.data;
   },
@@ -216,7 +216,7 @@ export const matchesApi = {
     if (options?.status) params.append("status", options.status);
 
     const response = await apiClient.get(
-      `/api/v1/matches/for-listing/${listingId}?${params.toString()}`
+      `matches/for-listing/${listingId}?${params.toString()}`
     );
     return response.data.data;
   },

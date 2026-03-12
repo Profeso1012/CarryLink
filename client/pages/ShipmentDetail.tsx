@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import {
@@ -27,15 +27,19 @@ import {
   X,
   Plus,
   Trash2,
-  Camera
+  Camera,
+  Edit3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { categoriesApi } from "@/api/categories.api";
 import { shipmentsApi } from "@/api/shipments.api";
 import { dashboardApi } from "@/api/dashboard.api";
 import { matchesApi } from "@/api/matches.api";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -51,12 +55,15 @@ import {
 export default function ShipmentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
+  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<any>({});
 
   const { data: shipment, isLoading, refetch } = useQuery({
     queryKey: ["shipment", id],
@@ -64,6 +71,16 @@ export default function ShipmentDetail() {
       return shipmentsApi.getById(id!);
     }
   });
+
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => categoriesApi.getAll()
+  });
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories?.find(cat => cat.id === categoryId);
+    return category?.name || "General Item";
+  };
 
   const isOwner = user?.id === shipment?.sender?.id;
 
@@ -143,6 +160,19 @@ export default function ShipmentDetail() {
     }
   });
 
+  const updateShipmentMutation = useMutation({
+    mutationFn: (data: any) => shipmentsApi.update(id!, data),
+    onSuccess: () => {
+      toast.success("Shipment updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["shipment", id] });
+      setIsEditing(null);
+      setEditValues({});
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to update shipment");
+    }
+  });
+
   const handleSendRequest = () => {
     if (!isAuthenticated) {
       toast.error("Please login to send a request");
@@ -157,6 +187,22 @@ export default function ShipmentDetail() {
       return;
     }
     senderRequestMutation.mutate(selectedListingId);
+  };
+
+  const handleEdit = (field: string) => {
+    setIsEditing(field);
+    setEditValues({ [field]: shipment[field] });
+  };
+
+  const handleSaveEdit = () => {
+    if (isEditing && editValues[isEditing] !== undefined) {
+      updateShipmentMutation.mutate({ [isEditing]: editValues[isEditing] });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(null);
+    setEditValues({});
   };
 
   if (isLoading) {
@@ -278,7 +324,7 @@ export default function ShipmentDetail() {
                             Open Request
                           </Badge>
                           <Badge className="bg-carry-bg text-carry-muted hover:bg-carry-bg border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                            {shipment.category?.name || "General Item"}
+                            {getCategoryName(shipment.item_category_id)}
                           </Badge>
                         </div>
                         {isOwner && (
@@ -287,8 +333,32 @@ export default function ShipmentDetail() {
                           </Badge>
                         )}
                       </div>
-                      <h1 className="text-3xl font-black text-carry-darker leading-tight">
-                        {shipment.title || shipment.item_description}
+                      <h1 className="text-3xl font-black text-carry-darker leading-tight relative">
+                        {isEditing === 'title' ? (
+                          <div className="space-y-2">
+                            <Input
+                              value={editValues.title || ''}
+                              onChange={(e) => setEditValues({...editValues, title: e.target.value})}
+                              className="text-2xl font-black"
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                              <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {shipment.title || shipment.item_description}
+                            {isOwner && (
+                              <button
+                                onClick={() => handleEdit('title')}
+                                className="absolute -right-8 top-1 p-1 text-gray-400 hover:text-carry-light transition-colors"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </>
+                        )}
                       </h1>
                       <div className="flex items-center gap-6 text-sm text-gray-500">
                         <div className="flex items-center gap-2 font-bold text-carry-darker">
@@ -298,17 +368,62 @@ export default function ShipmentDetail() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50">
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Declared Weight</span>
-                        <span className="text-lg font-bold text-carry-darker">{shipment.declared_weight_kg} kg</span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Pickup Deadline</span>
-                        <span className="text-lg font-bold text-carry-darker">
-                          {new Date(shipment.pickup_deadline).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
+                    <div className="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 relative">
+                      {isEditing === 'weight_deadline' ? (
+                        <div className="col-span-2 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-bold text-gray-600 uppercase">Declared Weight (kg)</label>
+                              <Input
+                                type="number"
+                                value={editValues.declared_weight_kg || ''}
+                                onChange={(e) => setEditValues({...editValues, declared_weight_kg: parseFloat(e.target.value)})}
+                                className="mt-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-bold text-gray-600 uppercase">Pickup Deadline</label>
+                              <Input
+                                type="date"
+                                value={editValues.pickup_deadline || ''}
+                                onChange={(e) => setEditValues({...editValues, pickup_deadline: e.target.value})}
+                                className="mt-1"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Declared Weight</span>
+                            <span className="text-lg font-bold text-carry-darker">{shipment.declared_weight_kg} kg</span>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Pickup Deadline</span>
+                            <span className="text-lg font-bold text-carry-darker">
+                              {new Date(shipment.pickup_deadline).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                          {isOwner && (
+                            <button
+                              onClick={() => {
+                                setIsEditing('weight_deadline');
+                                setEditValues({
+                                  declared_weight_kg: shipment.declared_weight_kg,
+                                  pickup_deadline: shipment.pickup_deadline?.split('T')[0]
+                                });
+                              }}
+                              className="absolute -right-8 top-0 p-2 text-gray-400 hover:text-carry-light transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -324,12 +439,36 @@ export default function ShipmentDetail() {
                 </div>
                 
                 <div className="space-y-6">
-                  <div className="space-y-3">
-                    <p className="text-sm text-carry-muted font-bold uppercase tracking-widest">Full Description</p>
-                    <p className="text-base text-carry-darker leading-relaxed">
-                      {shipment.item_description || "No detailed description provided."}
-                    </p>
-                  </div>
+                    <div className="space-y-3">
+                      <p className="text-sm text-carry-muted font-bold uppercase tracking-widest">Full Description</p>
+                      {isEditing === 'item_description' ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editValues.item_description || ''}
+                            onChange={(e) => setEditValues({...editValues, item_description: e.target.value})}
+                            className="min-h-[100px]"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <p className="text-base text-carry-darker leading-relaxed">
+                            {shipment.item_description || "No detailed description provided."}
+                          </p>
+                          {isOwner && (
+                            <button
+                              onClick={() => handleEdit('item_description')}
+                              className="absolute -right-8 top-0 p-1 text-gray-400 hover:text-carry-light transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                   <hr className="border-gray-50" />
 
@@ -368,11 +507,34 @@ export default function ShipmentDetail() {
             <div className="space-y-6">
               {/* Reward & Sender Card (Mobile and Desktop) */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8 space-y-6">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block mb-1">Offered Reward</span>
-                  <div className="text-4xl font-black text-carry-light">
-                    {shipment.offered_price} {shipment.currency}
-                  </div>
+                  {isOwner && (
+                    <button
+                      onClick={() => handleEdit('offered_price')}
+                      className="absolute top-0 right-0 p-1 text-gray-400 hover:text-carry-light transition-colors"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                  )}
+                  {isEditing === 'offered_price' ? (
+                    <div className="space-y-2">
+                      <Input
+                        type="number"
+                        value={editValues.offered_price || ''}
+                        onChange={(e) => setEditValues({...editValues, offered_price: parseFloat(e.target.value)})}
+                        className="text-2xl font-black text-center"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveEdit}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-4xl font-black text-carry-light">
+                      {shipment.offered_price} {shipment.currency}
+                    </div>
+                  )}
                   <p className="text-[11px] text-gray-400 font-bold uppercase tracking-tight pt-2">Full payment held in escrow</p>
                 </div>
 

@@ -41,12 +41,12 @@ export default function PublicProfile() {
     queryKey: ["user-activity", id],
     queryFn: async () => {
       const [listingsRes, shipmentsRes] = await Promise.all([
-        apiClient.get(`/travel-listings?traveler_id=${id}&status=active`),
-        apiClient.get(`/shipments?sender_id=${id}&status=open`)
+        apiClient.get(`travel-listings?traveler_id=${id}&status=active`),
+        apiClient.get(`shipments?sender_id=${id}&status=open`)
       ]);
       return {
-        listings: listingsRes.data.data.listings || [],
-        shipments: shipmentsRes.data.data.shipments || []
+        listings: listingsRes.data.data?.listings || [],
+        shipments: shipmentsRes.data.data?.shipments || []
       };
     },
     enabled: !!id
@@ -164,11 +164,11 @@ export default function PublicProfile() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 border-t border-gray-100">
               <div className="p-6 text-center border-r border-gray-100">
-                <span className="block text-xl font-black text-carry-darker">{profile.total_deliveries_as_traveler || 38}</span>
+                <span className="block text-xl font-black text-carry-darker">{profile.total_deliveries_as_traveler || 0}</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Travels Done</span>
               </div>
               <div className="p-6 text-center border-r border-gray-100">
-                <span className="block text-xl font-black text-carry-darker">{profile.total_deliveries_as_sender || 12}</span>
+                <span className="block text-xl font-black text-carry-darker">{profile.total_deliveries_as_sender || 0}</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Items Sent</span>
               </div>
               <div className="p-6 text-center border-r border-gray-100">

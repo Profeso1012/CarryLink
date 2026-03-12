@@ -28,7 +28,7 @@ export interface ShipmentRequest {
   pickup_address?: string;
   delivery_address?: string;
   special_instructions?: string;
-  status: "draft" | "open" | "matched" | "in_transit" | "delivered" | "cancelled";
+  status: "under_review" | "open" | "matched" | "in_transit" | "delivered" | "completed" | "cancelled" | "disputed";
   is_prohibited_check_passed: boolean;
   requires_admin_review: boolean;
   created_at: string;

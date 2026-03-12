@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { matchingApi } from "@/api/matching.api";
 
 interface Trip {
   id: string;
@@ -76,10 +77,9 @@ export default function MyTrips() {
   });
 
   const { data: shipments } = useQuery({
-    queryKey: ["urgent-shipments"],
+    queryKey: ["urgent-shipments-matches"],
     queryFn: async () => {
-      const response = await apiClient.get("/shipments?limit=4");
-      return response.data.data.shipments;
+      return matchingApi.getAllMatchesForMyListings(4);
     }
   });
 
@@ -271,36 +271,58 @@ export default function MyTrips() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {shipments && shipments.length > 0 ? shipments.map((shipment: any) => (
-              <div key={shipment.id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
-                <div className="relative h-40">
-                  <img
-                    src={shipment.images?.[0]?.url || shipment.thumbnail_url || `https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&h=300&fit=crop&q=80`}
-                    alt={shipment.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-3 right-3 bg-carry-darker/80 backdrop-blur-sm text-white px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm">Urgent</span>
-                </div>
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="font-bold text-carry-darker text-[15px] mb-2 truncate">{shipment.title}</div>
-                  <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
-                    <MapPin className="w-3 h-3" />
-                    {shipment.origin_city} &rarr; {shipment.destination_city}
+            {shipments && shipments.length > 0 ? shipments.map((match: any) => {
+              const shipment = match.shipment_request;
+              if (!shipment) return null;
+              
+              return (
+                <div key={match.match_id} className="bg-white rounded-sm border border-gray-100 group hover:border-carry-light/50 hover:shadow-md transition-all overflow-hidden flex flex-col">
+                  <div className="relative h-40 bg-gray-100 flex items-center justify-center">
+                    {match.shipment_request?.images?.[0]?.url ? (
+                      <img
+                        src={match.shipment_request.images[0].url}
+                        alt={match.shipment_request.item_description}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package className="w-12 h-12 text-gray-300" />
+                    )}
+                    <span className={cn(
+                      "absolute top-3 right-3 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest shadow-sm backdrop-blur-sm",
+                      match.status === 'suggested' ? 'bg-blue-500/80 text-white' :
+                      match.status === 'traveler_offered' ? 'bg-amber-500/80 text-white' :
+                      match.status === 'negotiating' ? 'bg-green-500/80 text-white' :
+                      match.status === 'payment_requested' ? 'bg-purple-500/80 text-white' :
+                      'bg-carry-darker/80 text-white'
+                    )}>
+                      {match.status === 'suggested' ? 'Suggested' :
+                       match.status === 'traveler_offered' ? 'Offered' :
+                       match.status === 'negotiating' ? 'Negotiating' :
+                       match.status === 'payment_requested' ? 'Payment Req.' :
+                       'Matched'}
+                    </span>
                   </div>
-                  <hr className="border-gray-100 mb-4" />
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-bold">
-                      <Star className="w-3 h-3 text-amber-500 fill-current" />
-                      Sender Verified
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="font-bold text-carry-darker text-[15px] mb-2 truncate">{shipment.item_description}</div>
+                    <div className="flex items-center gap-1.5 text-carry-muted font-bold text-[12px] mb-4">
+                      <MapPin className="w-3 h-3" />
+                      {shipment.origin_city} &rarr; {shipment.destination_city}
                     </div>
-                    <div className="text-carry-light font-bold text-[13px]">{shipment.offered_price} {shipment.currency}</div>
-                  </div>
-                  <div className="text-[11px] text-gray-400 font-bold mt-auto">
-                    Reward for {shipment.weight}kg package
+                    <hr className="border-gray-100 mb-4" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-bold">
+                        <Star className="w-3 h-3 text-amber-500 fill-current" />
+                        {shipment.sender?.display_name || 'Verified Sender'}
+                      </div>
+                      <div className="text-carry-light font-bold text-[13px]">{shipment.offered_price} {shipment.currency}</div>
+                    </div>
+                    <div className="text-[11px] text-gray-400 font-bold mt-auto">
+                      Reward for {shipment.declared_weight_kg}kg package
+                    </div>
                   </div>
                 </div>
-              </div>
-            )) : (
+              );
+            }) : (
               [1, 2, 3, 4].map((i) => (
                 <div key={i} className="bg-gray-50 h-64 rounded-sm animate-pulse"></div>
               ))

@@ -40,24 +40,48 @@ export default function PublicProfile() {
   const { data: userActivity } = useQuery({
     queryKey: ["user-activity", id],
     queryFn: async () => {
-      const [listingsRes, shipmentsRes] = await Promise.all([
-        apiClient.get(`/travel-listings/browse?limit=50&page=1`),
-        apiClient.get(`/shipments/browse?limit=50&page=1`)
-      ]);
+      try {
+        const [listingsRes, shipmentsRes] = await Promise.all([
+          apiClient.get(`/travel-listings/browse?limit=100&page=1`),
+          apiClient.get(`/shipments/browse?limit=100&page=1`)
+        ]);
 
-      // Filter results by user_id on client side
-      const allListings = listingsRes.data.data?.listings || [];
-      const allShipments = shipmentsRes.data.data?.shipments || [];
+        // Handle both formats: array and object with listings/shipments property
+        const listingsData = listingsRes.data.data;
+        const shipmentsData = shipmentsRes.data.data;
 
-      const userListings = allListings.filter((listing: any) => listing.user_id === id || listing.traveler?.id === id);
-      const userShipments = allShipments.filter((shipment: any) => shipment.user_id === id || shipment.sender?.id === id);
+        const allListings = Array.isArray(listingsData) ? listingsData : (listingsData?.listings || []);
+        const allShipments = Array.isArray(shipmentsData) ? shipmentsData : (shipmentsData?.shipments || []);
 
-      return {
-        listings: userListings,
-        shipments: userShipments,
-        listingsCount: userListings.length,
-        shipmentsCount: userShipments.length
-      };
+        // Filter results by user_id on client side
+        // Check both user_id and traveler.id / sender.id
+        const userListings = allListings.filter((listing: any) =>
+          listing.user_id === id ||
+          listing.traveler_id === id ||
+          listing.traveler?.id === id
+        );
+
+        const userShipments = allShipments.filter((shipment: any) =>
+          shipment.user_id === id ||
+          shipment.sender_id === id ||
+          shipment.sender?.id === id
+        );
+
+        return {
+          listings: userListings,
+          shipments: userShipments,
+          listingsCount: userListings.length,
+          shipmentsCount: userShipments.length
+        };
+      } catch (error) {
+        console.error("Error fetching user activity:", error);
+        return {
+          listings: [],
+          shipments: [],
+          listingsCount: 0,
+          shipmentsCount: 0
+        };
+      }
     },
     enabled: !!id
   });

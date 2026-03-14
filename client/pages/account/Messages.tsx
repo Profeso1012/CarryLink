@@ -46,7 +46,9 @@ export default function Messages() {
     queryKey: ["conversations"],
     queryFn: async () => {
       const response = await apiClient.get("/conversations");
-      return response.data.data as Conversation[];
+      const data = response.data.data;
+      // Handle both array and object with conversations property
+      return (Array.isArray(data) ? data : data?.conversations || []) as Conversation[];
     }
   });
 

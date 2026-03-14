@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import AccountLayout from "@/components/layout/AccountLayout";
 import { paymentsApi } from "@/api/payments.api";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,9 @@ import {
   ArrowUpLeft,
   Loader2,
   AlertCircle,
+  Bank,
+  Plus,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WithdrawModal from "@/components/payments/WithdrawModal";
@@ -29,6 +33,11 @@ export default function WalletPage() {
   const { data: transactions, isLoading: isTransactionsLoading } = useQuery({
     queryKey: ["wallet-transactions"],
     queryFn: () => paymentsApi.getTransactionHistory(),
+  });
+
+  const { data: payoutAccounts, isLoading: isAccountsLoading } = useQuery({
+    queryKey: ["payout-accounts"],
+    queryFn: () => paymentsApi.getPayoutAccounts(),
   });
 
   const getTransactionIcon = (type: string) => {
@@ -159,6 +168,70 @@ export default function WalletPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Payout Accounts */}
+        <Card className="border-none shadow-sm bg-white">
+          <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Payout Accounts</CardTitle>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="text-[10px] font-bold uppercase tracking-widest text-carry-light hover:bg-carry-light/10"
+              >
+                <Link to="/account/payout-accounts">
+                  Manage <ExternalLink className="w-3 h-3 ml-1" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isAccountsLoading ? (
+              <div className="p-20 flex justify-center">
+                <Loader2 className="w-10 h-10 animate-spin text-carry-light" />
+              </div>
+            ) : payoutAccounts && payoutAccounts.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {payoutAccounts.slice(0, 3).map((account) => (
+                  <div key={account.id} className="p-6 flex items-center justify-between hover:bg-gray-50/30 transition-colors">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-10 h-10 rounded-full bg-carry-bg flex items-center justify-center text-carry-light">
+                        <Bank className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-carry-darker">{account.bank_name}</h4>
+                        <p className="text-[11px] text-gray-400 font-bold uppercase mt-0.5">
+                          {account.account_number_masked}
+                        </p>
+                      </div>
+                    </div>
+                    {account.is_default && (
+                      <Badge className="bg-amber-50 text-amber-600 text-[9px] font-bold uppercase tracking-tight border-none px-2 py-0.5">
+                        Default
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <Bank className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-400 text-sm mb-4">No payout accounts set up</p>
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs"
+                >
+                  <Link to="/account/payout-accounts">
+                    <Plus className="w-3.5 h-3.5 mr-2" />
+                    Add Account
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Transaction History */}
         <Card className="border-none shadow-sm bg-white">

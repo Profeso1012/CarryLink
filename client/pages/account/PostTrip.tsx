@@ -303,6 +303,20 @@ export default function PostTrip() {
                         {useFlatFee ? "Charged once for the entire capacity." : "Charged per kilogram carried."}
                       </p>
                     </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Currency</Label>
+                      <select
+                        value={formData.currency}
+                        onChange={(e) => updateFormData({ currency: e.target.value })}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-carry-light"
+                      >
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="NGN">NGN - Nigerian Naira</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="CAD">CAD - Canadian Dollar</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
@@ -363,9 +377,9 @@ export default function PostTrip() {
                       <div className="text-gray-400 font-medium">Departure</div>
                       <div className="text-carry-darker font-bold">{new Date(formData.departure_date).toLocaleDateString()}</div>
                       
-                      <div className="text-gray-400 font-medium">Capacity</div>
+                      <div className="text-gray-400 font-medium">Capacity & Pricing</div>
                       <div className="text-carry-darker font-bold">
-                        {formData.total_capacity_kg}kg @ {useFlatFee ? `${formData.flat_fee} Flat Fee` : `${formData.price_per_kg}/kg`}
+                        {formData.total_capacity_kg}kg @ {useFlatFee ? `${formData.flat_fee}` : `${formData.price_per_kg}`} {formData.currency} {useFlatFee ? "Flat Fee" : "/kg"}
                       </div>
 
                       <div className="text-gray-400 font-medium">Accepted</div>

@@ -23,8 +23,7 @@ import {
   Flag,
   User,
   ExternalLink,
-  Send,
-  Edit3
+  Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -35,6 +34,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
 import { matchesApi } from "@/api/matches.api";
+import EditIconButton from "@/components/ui/EditIconButton";
+import EditModal, { EditField } from "@/components/modals/EditModal";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +55,7 @@ export default function ListingDetail() {
   const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
   const [offerMessage, setOfferMessage] = useState("");
   const [offerAmount, setOfferAmount] = useState<string>("");
-  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<any>({});
 
   const { data: listing, isLoading } = useQuery({
@@ -143,23 +144,125 @@ export default function ListingDetail() {
     travelerOfferMutation.mutate(selectedShipmentId);
   };
 
-  const handleEdit = (field: string) => {
-    setIsEditing(field);
-    setEditValues({ [field]: listing[field] });
+  const handleOpenEditModal = (section: string, initialValues: any) => {
+    setEditingSection(section);
+    setEditValues(initialValues);
   };
 
   const handleSaveEdit = () => {
-    if (isEditing && editValues[isEditing] !== undefined) {
-      updateListingMutation.mutate({ [isEditing]: editValues[isEditing] });
+    if (editingSection) {
+      updateListingMutation.mutate(editValues);
     }
   };
 
   const handleCancelEdit = () => {
-    setIsEditing(null);
+    setEditingSection(null);
     setEditValues({});
   };
 
   const isOwner = user?.id === listing?.traveler_id;
+
+  // Define editable sections with their modal configuration
+  const getEditModalFields = (): EditField[] => {
+    switch (editingSection) {
+      case "route":
+        return [
+          {
+            name: "origin_city",
+            label: "Origin City",
+            type: "text",
+            value: editValues.origin_city || "",
+            onChange: (v) => setEditValues({ ...editValues, origin_city: v }),
+            required: true,
+          },
+          {
+            name: "destination_city",
+            label: "Destination City",
+            type: "text",
+            value: editValues.destination_city || "",
+            onChange: (v) => setEditValues({ ...editValues, destination_city: v }),
+            required: true,
+          },
+        ];
+      case "dates":
+        return [
+          {
+            name: "departure_date",
+            label: "Departure Date",
+            type: "date",
+            value: editValues.departure_date?.split("T")[0] || "",
+            onChange: (v) => setEditValues({ ...editValues, departure_date: v }),
+            required: true,
+          },
+          {
+            name: "arrival_date",
+            label: "Arrival Date",
+            type: "date",
+            value: editValues.arrival_date?.split("T")[0] || "",
+            onChange: (v) => setEditValues({ ...editValues, arrival_date: v }),
+            required: true,
+          },
+        ];
+      case "pricing":
+        return [
+          {
+            name: "price_per_kg",
+            label: "Price per KG",
+            type: "number",
+            value: editValues.price_per_kg || 0,
+            onChange: (v) => setEditValues({ ...editValues, price_per_kg: v }),
+            required: true,
+            min: 0,
+          },
+          {
+            name: "currency",
+            label: "Currency",
+            type: "text",
+            value: editValues.currency || "USD",
+            onChange: (v) => setEditValues({ ...editValues, currency: v }),
+            required: true,
+          },
+        ];
+      case "capacity":
+        return [
+          {
+            name: "available_capacity_kg",
+            label: "Available Capacity (kg)",
+            type: "number",
+            value: editValues.available_capacity_kg || 0,
+            onChange: (v) => setEditValues({ ...editValues, available_capacity_kg: v }),
+            required: true,
+            min: 0,
+          },
+          {
+            name: "airline",
+            label: "Airline",
+            type: "text",
+            value: editValues.airline || "",
+            onChange: (v) => setEditValues({ ...editValues, airline: v }),
+          },
+          {
+            name: "flight_number",
+            label: "Flight Number",
+            type: "text",
+            value: editValues.flight_number || "",
+            onChange: (v) => setEditValues({ ...editValues, flight_number: v }),
+          },
+        ];
+      case "notes":
+        return [
+          {
+            name: "notes",
+            label: "Traveler's Notes",
+            type: "textarea",
+            value: editValues.notes || "",
+            onChange: (v) => setEditValues({ ...editValues, notes: v }),
+          },
+        ];
+      default:
+        return [];
+    }
+  };
 
   if (isLoading) {
     return (
@@ -224,220 +327,95 @@ export default function ListingDetail() {
                       )}
                     </div>
                     <div className="relative">
-                      {isEditing === 'route' ? (
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs font-bold text-gray-600 uppercase">Origin City</label>
-                              <Input
-                                value={editValues.origin_city || ''}
-                                onChange={(e) => setEditValues({...editValues, origin_city: e.target.value})}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-bold text-gray-600 uppercase">Destination City</label>
-                              <Input
-                                value={editValues.destination_city || ''}
-                                onChange={(e) => setEditValues({...editValues, destination_city: e.target.value})}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                          </div>
+                      <h1 className="text-3xl font-black text-carry-darker leading-tight">
+                        Traveling from {listing.origin_city} to {listing.destination_city}
+                      </h1>
+                      {isOwner && (
+                        <div className="absolute -top-2 -right-12 p-2">
+                          <EditIconButton
+                            onClick={() =>
+                              handleOpenEditModal("route", {
+                                origin_city: listing.origin_city,
+                                destination_city: listing.destination_city,
+                              })
+                            }
+                            tooltip="Edit route"
+                          />
                         </div>
-                      ) : (
-                        <>
-                          <h1 className="text-3xl font-black text-carry-darker leading-tight">
-                            Traveling from {listing.origin_city} to {listing.destination_city}
-                          </h1>
-                          {isOwner && (
-                            <button
-                              onClick={() => {
-                                setIsEditing('route');
-                                setEditValues({
-                                  origin_city: listing.origin_city,
-                                  destination_city: listing.destination_city
-                                });
-                              }}
-                              className="absolute -right-8 top-0 p-2 text-gray-400 hover:text-carry-light transition-colors"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </>
                       )}
                     </div>
                     <div className="flex items-center gap-6 text-sm text-gray-500 relative">
-                      {isEditing === 'dates' ? (
-                        <div className="space-y-4 w-full">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="text-xs font-bold text-gray-600 uppercase">Departure Date</label>
-                              <Input
-                                type="date"
-                                value={editValues.departure_date || ''}
-                                onChange={(e) => setEditValues({...editValues, departure_date: e.target.value})}
-                                className="mt-1"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-bold text-gray-600 uppercase">Arrival Date</label>
-                              <Input
-                                type="date"
-                                value={editValues.arrival_date || ''}
-                                onChange={(e) => setEditValues({...editValues, arrival_date: e.target.value})}
-                                className="mt-1"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                          </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-carry-light" />
+                        <span className="font-medium">Departing: {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-carry-light" />
+                        <span className="font-medium">Arriving: {new Date(listing.arrival_date).toLocaleDateString([], { day: '2-digit', month: 'long' })}</span>
+                      </div>
+                      {isOwner && (
+                        <div className="absolute -right-12 top-0 p-2">
+                          <EditIconButton
+                            onClick={() =>
+                              handleOpenEditModal("dates", {
+                                departure_date: listing.departure_date?.split("T")[0],
+                                arrival_date: listing.arrival_date?.split("T")[0],
+                              })
+                            }
+                            tooltip="Edit dates"
+                          />
                         </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-carry-light" />
-                            <span className="font-medium">Departing: {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-carry-light" />
-                            <span className="font-medium">Arriving: {new Date(listing.arrival_date).toLocaleDateString([], { day: '2-digit', month: 'long' })}</span>
-                          </div>
-                          {isOwner && (
-                            <button
-                              onClick={() => {
-                                setIsEditing('dates');
-                                setEditValues({
-                                  departure_date: listing.departure_date?.split('T')[0],
-                                  arrival_date: listing.arrival_date?.split('T')[0]
-                                });
-                              }}
-                              className="absolute -right-8 top-0 p-2 text-gray-400 hover:text-carry-light transition-colors"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </>
                       )}
                     </div>
                   </div>
                   <div className="bg-carry-bg rounded-sm p-6 flex flex-col items-center justify-center text-center min-w-[160px] relative">
                     {isOwner && (
-                      <button
-                        onClick={() => handleEdit('price_per_kg')}
-                        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-carry-light transition-colors"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
+                      <div className="absolute top-2 right-2">
+                        <EditIconButton
+                          onClick={() =>
+                            handleOpenEditModal("pricing", {
+                              price_per_kg: listing.price_per_kg,
+                              currency: listing.currency,
+                            })
+                          }
+                          tooltip="Edit pricing"
+                        />
+                      </div>
                     )}
                     <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest mb-1">Price per kg</span>
-                    {isEditing === 'price_per_kg' ? (
-                      <div className="flex flex-col gap-2">
-                        <Input
-                          type="number"
-                          value={editValues.price_per_kg || ''}
-                          onChange={(e) => setEditValues({...editValues, price_per_kg: parseFloat(e.target.value)})}
-                          className="text-center w-24"
-                        />
-                        <div className="flex gap-1">
-                          <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-3xl font-black text-carry-light">
-                        {listing.price_per_kg} {listing.currency}
-                      </div>
-                    )}
+                    <div className="text-3xl font-black text-carry-light">
+                      {listing.price_per_kg} {listing.currency}
+                    </div>
                     <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">Starting Rate</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-8 border-t border-gray-50 relative">
-                  {isEditing === 'capacity' ? (
-                    <div className="col-span-full space-y-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 uppercase">Available Space (kg)</label>
-                          <Input
-                            type="number"
-                            value={editValues.available_capacity_kg || ''}
-                            onChange={(e) => setEditValues({...editValues, available_capacity_kg: parseFloat(e.target.value)})}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 uppercase">Total Capacity (kg)</label>
-                          <Input
-                            type="number"
-                            value={editValues.total_capacity_kg || ''}
-                            onChange={(e) => setEditValues({...editValues, total_capacity_kg: parseFloat(e.target.value)})}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 uppercase">Airline</label>
-                          <Input
-                            value={editValues.airline || ''}
-                            onChange={(e) => setEditValues({...editValues, airline: e.target.value})}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-600 uppercase">Flight Number</label>
-                          <Input
-                            value={editValues.flight_number || ''}
-                            onChange={(e) => setEditValues({...editValues, flight_number: e.target.value})}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                      </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Available Space</span>
+                    <span className="text-lg font-bold text-carry-darker">{listing.available_capacity_kg} kg</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Airline</span>
+                    <span className="text-lg font-bold text-carry-darker">{listing.airline || "Not specified"}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Flight ID</span>
+                    <span className="text-lg font-bold text-carry-darker">{listing.flight_number || "Verified"}</span>
+                  </div>
+                  {isOwner && (
+                    <div className="absolute -right-12 top-0 p-2">
+                      <EditIconButton
+                        onClick={() =>
+                          handleOpenEditModal("capacity", {
+                            available_capacity_kg: listing.available_capacity_kg,
+                            airline: listing.airline,
+                            flight_number: listing.flight_number,
+                          })
+                        }
+                        tooltip="Edit capacity"
+                      />
                     </div>
-                  ) : (
-                    <>
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Available Space</span>
-                        <span className="text-lg font-bold text-carry-darker">{listing.available_capacity_kg} kg</span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Total Capacity</span>
-                        <span className="text-lg font-bold text-carry-darker">{listing.total_capacity_kg} kg</span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Airline</span>
-                        <span className="text-lg font-bold text-carry-darker">{listing.airline || "Not specified"}</span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Flight ID</span>
-                        <span className="text-lg font-bold text-carry-darker">{listing.flight_number || "Verified"}</span>
-                      </div>
-                      {isOwner && (
-                        <button
-                          onClick={() => {
-                            setIsEditing('capacity');
-                            setEditValues({
-                              available_capacity_kg: listing.available_capacity_kg,
-                              total_capacity_kg: listing.total_capacity_kg,
-                              airline: listing.airline,
-                              flight_number: listing.flight_number
-                            });
-                          }}
-                          className="absolute -right-8 top-0 p-2 text-gray-400 hover:text-carry-light transition-colors"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </>
                   )}
                 </div>
               </div>
@@ -465,32 +443,22 @@ export default function ListingDetail() {
                 {listing.notes && (
                   <div className="mt-6 p-6 bg-amber-50/50 border border-amber-100 rounded-sm relative">
                     {isOwner && (
-                      <button
-                        onClick={() => handleEdit('notes')}
-                        className="absolute top-2 right-2 p-1 text-amber-600 hover:text-amber-700 transition-colors"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
+                      <div className="absolute top-2 right-2">
+                        <EditIconButton
+                          onClick={() =>
+                            handleOpenEditModal("notes", {
+                              notes: listing.notes,
+                            })
+                          }
+                          tooltip="Edit notes"
+                        />
+                      </div>
                     )}
                     <div className="flex gap-3">
                       <Info className="w-5 h-5 text-amber-500 shrink-0" />
                       <div className="space-y-1 flex-1">
                         <span className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Traveler's Notes</span>
-                        {isEditing === 'notes' ? (
-                          <div className="space-y-2">
-                            <Textarea
-                              value={editValues.notes || ''}
-                              onChange={(e) => setEditValues({...editValues, notes: e.target.value})}
-                              className="min-h-[80px] bg-white border-amber-200"
-                            />
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                              <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-amber-900 leading-relaxed">{listing.notes}</p>
-                        )}
+                        <p className="text-sm text-amber-900 leading-relaxed">{listing.notes}</p>
                       </div>
                     </div>
                   </div>
@@ -717,6 +685,32 @@ export default function ListingDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Modal */}
+      <EditModal
+        open={!!editingSection}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingSection(null);
+            setEditValues({});
+          }
+        }}
+        title={`Edit ${
+          editingSection === "route"
+            ? "Route"
+            : editingSection === "dates"
+            ? "Travel Dates"
+            : editingSection === "pricing"
+            ? "Pricing"
+            : editingSection === "capacity"
+            ? "Capacity & Flight"
+            : "Notes"
+        }`}
+        fields={getEditModalFields()}
+        onSave={handleSaveEdit}
+        onCancel={handleCancelEdit}
+        isLoading={updateListingMutation.isPending}
+      />
 
       <Footer />
     </div>

@@ -41,14 +41,22 @@ export default function PublicProfile() {
     queryKey: ["user-activity", id],
     queryFn: async () => {
       const [listingsRes, shipmentsRes] = await Promise.all([
-        apiClient.get(`travel-listings/browse?user_id=${id}&status=active`),
-        apiClient.get(`shipments?sender_id=${id}&status=open`)
+        apiClient.get(`/travel-listings/browse?limit=50&page=1`),
+        apiClient.get(`/shipments/browse?limit=50&page=1`)
       ]);
+
+      // Filter results by user_id on client side
+      const allListings = listingsRes.data.data?.listings || [];
+      const allShipments = shipmentsRes.data.data?.shipments || [];
+
+      const userListings = allListings.filter((listing: any) => listing.user_id === id || listing.traveler?.id === id);
+      const userShipments = allShipments.filter((shipment: any) => shipment.user_id === id || shipment.sender?.id === id);
+
       return {
-        listings: listingsRes.data.data?.listings || [],
-        shipments: shipmentsRes.data.data?.shipments || [],
-        listingsCount: listingsRes.data.meta?.total || 0,
-        shipmentsCount: shipmentsRes.data.meta?.total || 0
+        listings: userListings,
+        shipments: userShipments,
+        listingsCount: userListings.length,
+        shipmentsCount: userShipments.length
       };
     },
     enabled: !!id

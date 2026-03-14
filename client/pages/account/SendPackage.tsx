@@ -263,17 +263,29 @@ export default function SendPackage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Offered Reward ({formData.currency})</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <Input
-                          type="number"
-                          placeholder="e.g. 50"
-                          value={formData.offered_price}
-                          onChange={(e) => updateFormData({ offered_price: e.target.value })}
-                          required
-                          className="pl-10"
-                        />
+                      <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Offered Reward</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="relative col-span-2">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            type="number"
+                            placeholder="e.g. 50"
+                            value={formData.offered_price}
+                            onChange={(e) => updateFormData({ offered_price: e.target.value })}
+                            required
+                            className="pl-10"
+                          />
+                        </div>
+                        <select
+                          value={formData.currency}
+                          onChange={(e) => updateFormData({ currency: e.target.value })}
+                          className="w-full h-10 rounded-md border border-input bg-background px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-carry-light"
+                        >
+                          <option value="USD">USD</option>
+                          <option value="NGN">NGN</option>
+                          <option value="GBP">GBP</option>
+                          <option value="CAD">CAD</option>
+                        </select>
                       </div>
                     </div>
                   </div>

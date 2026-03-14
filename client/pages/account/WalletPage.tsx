@@ -14,7 +14,7 @@ import {
   ArrowUpLeft,
   Loader2,
   AlertCircle,
-  Bank,
+  CreditCard,
   Plus,
   ExternalLink,
 } from "lucide-react";
@@ -197,7 +197,7 @@ export default function WalletPage() {
                   <div key={account.id} className="p-6 flex items-center justify-between hover:bg-gray-50/30 transition-colors">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-10 h-10 rounded-full bg-carry-bg flex items-center justify-center text-carry-light">
-                        <Bank className="w-5 h-5" />
+                        <CreditCard className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-bold text-carry-darker">{account.bank_name}</h4>
@@ -216,7 +216,7 @@ export default function WalletPage() {
               </div>
             ) : (
               <div className="p-8 text-center">
-                <Bank className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+                <CreditCard className="w-8 h-8 text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm mb-4">No payout accounts set up</p>
                 <Button
                   asChild

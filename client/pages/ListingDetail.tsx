@@ -34,7 +34,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
 import { matchesApi } from "@/api/matches.api";
-import EditIconButton from "@/components/ui/EditIconButton";
 import EditModal, { EditField } from "@/components/modals/EditModal";
 import {
   Dialog,
@@ -55,7 +54,7 @@ export default function ListingDetail() {
   const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
   const [offerMessage, setOfferMessage] = useState("");
   const [offerAmount, setOfferAmount] = useState<string>("");
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editValues, setEditValues] = useState<any>({});
 
   const { data: listing, isLoading } = useQuery({
@@ -144,125 +143,116 @@ export default function ListingDetail() {
     travelerOfferMutation.mutate(selectedShipmentId);
   };
 
-  const handleOpenEditModal = (section: string, initialValues: any) => {
-    setEditingSection(section);
-    setEditValues(initialValues);
+  const handleOpenEditModal = () => {
+    // Initialize all editable fields
+    setEditValues({
+      origin_city: listing?.origin_city || "",
+      destination_city: listing?.destination_city || "",
+      departure_date: listing?.departure_date?.split("T")[0] || "",
+      arrival_date: listing?.arrival_date?.split("T")[0] || "",
+      price_per_kg: listing?.price_per_kg || 0,
+      currency: listing?.currency || "USD",
+      available_capacity_kg: listing?.available_capacity_kg || 0,
+      airline: listing?.airline || "",
+      flight_number: listing?.flight_number || "",
+      notes: listing?.notes || "",
+    });
+    setIsEditModalOpen(true);
   };
 
   const handleSaveEdit = () => {
-    if (editingSection) {
-      updateListingMutation.mutate(editValues);
-    }
+    updateListingMutation.mutate(editValues);
   };
 
   const handleCancelEdit = () => {
-    setEditingSection(null);
+    setIsEditModalOpen(false);
     setEditValues({});
   };
 
   const isOwner = user?.id === listing?.traveler_id;
 
-  // Define editable sections with their modal configuration
-  const getEditModalFields = (): EditField[] => {
-    switch (editingSection) {
-      case "route":
-        return [
-          {
-            name: "origin_city",
-            label: "Origin City",
-            type: "text",
-            value: editValues.origin_city || "",
-            onChange: (v) => setEditValues({ ...editValues, origin_city: v }),
-            required: true,
-          },
-          {
-            name: "destination_city",
-            label: "Destination City",
-            type: "text",
-            value: editValues.destination_city || "",
-            onChange: (v) => setEditValues({ ...editValues, destination_city: v }),
-            required: true,
-          },
-        ];
-      case "dates":
-        return [
-          {
-            name: "departure_date",
-            label: "Departure Date",
-            type: "date",
-            value: editValues.departure_date?.split("T")[0] || "",
-            onChange: (v) => setEditValues({ ...editValues, departure_date: v }),
-            required: true,
-          },
-          {
-            name: "arrival_date",
-            label: "Arrival Date",
-            type: "date",
-            value: editValues.arrival_date?.split("T")[0] || "",
-            onChange: (v) => setEditValues({ ...editValues, arrival_date: v }),
-            required: true,
-          },
-        ];
-      case "pricing":
-        return [
-          {
-            name: "price_per_kg",
-            label: "Price per KG",
-            type: "number",
-            value: editValues.price_per_kg || 0,
-            onChange: (v) => setEditValues({ ...editValues, price_per_kg: v }),
-            required: true,
-            min: 0,
-          },
-          {
-            name: "currency",
-            label: "Currency",
-            type: "text",
-            value: editValues.currency || "USD",
-            onChange: (v) => setEditValues({ ...editValues, currency: v }),
-            required: true,
-          },
-        ];
-      case "capacity":
-        return [
-          {
-            name: "available_capacity_kg",
-            label: "Available Capacity (kg)",
-            type: "number",
-            value: editValues.available_capacity_kg || 0,
-            onChange: (v) => setEditValues({ ...editValues, available_capacity_kg: v }),
-            required: true,
-            min: 0,
-          },
-          {
-            name: "airline",
-            label: "Airline",
-            type: "text",
-            value: editValues.airline || "",
-            onChange: (v) => setEditValues({ ...editValues, airline: v }),
-          },
-          {
-            name: "flight_number",
-            label: "Flight Number",
-            type: "text",
-            value: editValues.flight_number || "",
-            onChange: (v) => setEditValues({ ...editValues, flight_number: v }),
-          },
-        ];
-      case "notes":
-        return [
-          {
-            name: "notes",
-            label: "Traveler's Notes",
-            type: "textarea",
-            value: editValues.notes || "",
-            onChange: (v) => setEditValues({ ...editValues, notes: v }),
-          },
-        ];
-      default:
-        return [];
-    }
-  };
+  // All editable fields in one modal
+  const getEditModalFields = (): EditField[] => [
+    {
+      name: "origin_city",
+      label: "Origin City",
+      type: "text",
+      value: editValues.origin_city || "",
+      onChange: (v) => setEditValues({ ...editValues, origin_city: v }),
+      required: true,
+    },
+    {
+      name: "destination_city",
+      label: "Destination City",
+      type: "text",
+      value: editValues.destination_city || "",
+      onChange: (v) => setEditValues({ ...editValues, destination_city: v }),
+      required: true,
+    },
+    {
+      name: "departure_date",
+      label: "Departure Date",
+      type: "date",
+      value: editValues.departure_date?.split("T")[0] || "",
+      onChange: (v) => setEditValues({ ...editValues, departure_date: v }),
+      required: true,
+    },
+    {
+      name: "arrival_date",
+      label: "Arrival Date",
+      type: "date",
+      value: editValues.arrival_date?.split("T")[0] || "",
+      onChange: (v) => setEditValues({ ...editValues, arrival_date: v }),
+      required: true,
+    },
+    {
+      name: "price_per_kg",
+      label: "Price per KG",
+      type: "number",
+      value: editValues.price_per_kg || 0,
+      onChange: (v) => setEditValues({ ...editValues, price_per_kg: v }),
+      required: true,
+      min: 0,
+    },
+    {
+      name: "currency",
+      label: "Currency",
+      type: "text",
+      value: editValues.currency || "USD",
+      onChange: (v) => setEditValues({ ...editValues, currency: v }),
+      required: true,
+    },
+    {
+      name: "available_capacity_kg",
+      label: "Available Capacity (kg)",
+      type: "number",
+      value: editValues.available_capacity_kg || 0,
+      onChange: (v) => setEditValues({ ...editValues, available_capacity_kg: v }),
+      required: true,
+      min: 0,
+    },
+    {
+      name: "airline",
+      label: "Airline",
+      type: "text",
+      value: editValues.airline || "",
+      onChange: (v) => setEditValues({ ...editValues, airline: v }),
+    },
+    {
+      name: "flight_number",
+      label: "Flight Number",
+      type: "text",
+      value: editValues.flight_number || "",
+      onChange: (v) => setEditValues({ ...editValues, flight_number: v }),
+    },
+    {
+      name: "notes",
+      label: "Traveler's Notes",
+      type: "textarea",
+      value: editValues.notes || "",
+      onChange: (v) => setEditValues({ ...editValues, notes: v }),
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -315,36 +305,33 @@ export default function ListingDetail() {
               {/* Header Card */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8">
                 <div className="flex flex-col md:flex-row justify-between gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-green-50 text-green-600 hover:bg-green-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                        Active Listing
-                      </Badge>
-                      {listing.is_verified_flight && (
-                        <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                          Verified Flight
+                  <div className="space-y-4 flex-1">
+                    <div className="flex items-center gap-2 justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-green-50 text-green-600 hover:bg-green-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                          Active Listing
                         </Badge>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <h1 className="text-3xl font-black text-carry-darker leading-tight">
-                        Traveling from {listing.origin_city} to {listing.destination_city}
-                      </h1>
+                        {listing.is_verified_flight && (
+                          <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            Verified Flight
+                          </Badge>
+                        )}
+                      </div>
                       {isOwner && (
-                        <div className="absolute -top-2 -right-12 p-2">
-                          <EditIconButton
-                            onClick={() =>
-                              handleOpenEditModal("route", {
-                                origin_city: listing.origin_city,
-                                destination_city: listing.destination_city,
-                              })
-                            }
-                            tooltip="Edit route"
-                          />
-                        </div>
+                        <Button
+                          onClick={handleOpenEditModal}
+                          variant="outline"
+                          size="sm"
+                          className="border-carry-light text-carry-light hover:bg-carry-light hover:text-white font-bold text-xs uppercase tracking-widest h-8"
+                        >
+                          Edit Listing
+                        </Button>
                       )}
                     </div>
-                    <div className="flex items-center gap-6 text-sm text-gray-500 relative">
+                    <h1 className="text-3xl font-black text-carry-darker leading-tight">
+                      Traveling from {listing.origin_city} to {listing.destination_city}
+                    </h1>
+                    <div className="flex items-center gap-6 text-sm text-gray-500">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-carry-light" />
                         <span className="font-medium">Departing: {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' })}</span>
@@ -353,35 +340,9 @@ export default function ListingDetail() {
                         <Clock className="w-4 h-4 text-carry-light" />
                         <span className="font-medium">Arriving: {new Date(listing.arrival_date).toLocaleDateString([], { day: '2-digit', month: 'long' })}</span>
                       </div>
-                      {isOwner && (
-                        <div className="absolute -right-12 top-0 p-2">
-                          <EditIconButton
-                            onClick={() =>
-                              handleOpenEditModal("dates", {
-                                departure_date: listing.departure_date?.split("T")[0],
-                                arrival_date: listing.arrival_date?.split("T")[0],
-                              })
-                            }
-                            tooltip="Edit dates"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
-                  <div className="bg-carry-bg rounded-sm p-6 flex flex-col items-center justify-center text-center min-w-[160px] relative">
-                    {isOwner && (
-                      <div className="absolute top-2 right-2">
-                        <EditIconButton
-                          onClick={() =>
-                            handleOpenEditModal("pricing", {
-                              price_per_kg: listing.price_per_kg,
-                              currency: listing.currency,
-                            })
-                          }
-                          tooltip="Edit pricing"
-                        />
-                      </div>
-                    )}
+                  <div className="bg-carry-bg rounded-sm p-6 flex flex-col items-center justify-center text-center min-w-[160px]">
                     <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest mb-1">Price per kg</span>
                     <div className="text-3xl font-black text-carry-light">
                       {listing.price_per_kg} {listing.currency}
@@ -390,7 +351,7 @@ export default function ListingDetail() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-8 border-t border-gray-50 relative">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-8 border-t border-gray-50">
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Available Space</span>
                     <span className="text-lg font-bold text-carry-darker">{listing.available_capacity_kg} kg</span>
@@ -403,20 +364,6 @@ export default function ListingDetail() {
                     <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Flight ID</span>
                     <span className="text-lg font-bold text-carry-darker">{listing.flight_number || "Verified"}</span>
                   </div>
-                  {isOwner && (
-                    <div className="absolute -right-12 top-0 p-2">
-                      <EditIconButton
-                        onClick={() =>
-                          handleOpenEditModal("capacity", {
-                            available_capacity_kg: listing.available_capacity_kg,
-                            airline: listing.airline,
-                            flight_number: listing.flight_number,
-                          })
-                        }
-                        tooltip="Edit capacity"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -441,19 +388,7 @@ export default function ListingDetail() {
                   })}
                 </div>
                 {listing.notes && (
-                  <div className="mt-6 p-6 bg-amber-50/50 border border-amber-100 rounded-sm relative">
-                    {isOwner && (
-                      <div className="absolute top-2 right-2">
-                        <EditIconButton
-                          onClick={() =>
-                            handleOpenEditModal("notes", {
-                              notes: listing.notes,
-                            })
-                          }
-                          tooltip="Edit notes"
-                        />
-                      </div>
-                    )}
+                  <div className="mt-6 p-6 bg-amber-50/50 border border-amber-100 rounded-sm">
                     <div className="flex gap-3">
                       <Info className="w-5 h-5 text-amber-500 shrink-0" />
                       <div className="space-y-1 flex-1">
@@ -688,24 +623,15 @@ export default function ListingDetail() {
 
       {/* Edit Modal */}
       <EditModal
-        open={!!editingSection}
+        open={isEditModalOpen}
         onOpenChange={(open) => {
           if (!open) {
-            setEditingSection(null);
+            setIsEditModalOpen(false);
             setEditValues({});
           }
         }}
-        title={`Edit ${
-          editingSection === "route"
-            ? "Route"
-            : editingSection === "dates"
-            ? "Travel Dates"
-            : editingSection === "pricing"
-            ? "Pricing"
-            : editingSection === "capacity"
-            ? "Capacity & Flight"
-            : "Notes"
-        }`}
+        title="Edit Travel Listing"
+        description="Update all details of your travel listing."
         fields={getEditModalFields()}
         onSave={handleSaveEdit}
         onCancel={handleCancelEdit}

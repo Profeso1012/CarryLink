@@ -4,7 +4,7 @@ import AccountLayout from "@/components/layout/AccountLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, ArrowRight, Send, Search, MoreVertical, Loader2, MessageSquare, Clock, CreditCard, CheckCircle2 } from "lucide-react";
+import { Send, Search, MoreVertical, Loader2, MessageSquare, CreditCard, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { useNavigate } from "react-router-dom";
@@ -12,27 +12,37 @@ import { toast } from "sonner";
 
 interface Conversation {
   id: string;
-  participant_name: string;
-  participant_avatar?: string;
-  last_message?: string;
-  last_message_at?: string;
-  unread_count: number;
   match_id?: string;
-  booking_id?: string;
+  match_status?: string;
+  booking_id?: null | string;
+  other_participant: {
+    id: string;
+    display_name: string;
+    avatar_url?: string;
+    trust_score?: number;
+  };
+  last_message?: {
+    id: string;
+    type: string;
+    content?: string;
+    sent_at: string;
+    is_mine: boolean;
+  };
+  unread_count: number;
+  last_message_at?: string;
 }
 
 interface Message {
   id: string;
-  sender_id: string;
-  sender_name?: string;
-  content?: string;
-  message_type: string;
-  created_at: string;
+  type: string;
+  sender_id?: string;
   is_mine: boolean;
+  content?: string;
+  sent_at: string;
   // For payment_request messages
-  booking_id?: string;
   amount?: number;
   currency?: string;
+  booking_id?: string;
   payment_status?: string;
 }
 
@@ -48,7 +58,8 @@ export default function Messages() {
       const response = await apiClient.get("/conversations");
       const data = response.data.data;
       // Handle both array and object with conversations property
-      return (Array.isArray(data) ? data : data?.conversations || []) as Conversation[];
+      const convs = (Array.isArray(data) ? data : data?.conversations || []) as Conversation[];
+      return convs;
     }
   });
 
@@ -57,7 +68,10 @@ export default function Messages() {
     queryFn: async () => {
       if (!selectedConvId) return [];
       const response = await apiClient.get(`/conversations/${selectedConvId}/messages`);
-      return response.data.data as Message[];
+      const data = response.data.data;
+      // Handle both array and object with messages property
+      const msgs = (Array.isArray(data) ? data : data?.messages || []) as Message[];
+      return msgs;
     },
     enabled: !!selectedConvId
   });
@@ -125,8 +139,12 @@ export default function Messages() {
                   )}
                 >
                   <div className="relative shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light font-bold text-sm">
-                      {conv.participant_name.charAt(0)}
+                    <div className="w-10 h-10 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light font-bold text-sm overflow-hidden">
+                      {conv.other_participant?.avatar_url ? (
+                        <img src={conv.other_participant.avatar_url} alt={conv.other_participant.display_name} className="w-full h-full object-cover" />
+                      ) : (
+                        conv.other_participant?.display_name?.charAt(0).toUpperCase()
+                      )}
                     </div>
                     {conv.unread_count > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-carry-light text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white">
@@ -136,11 +154,11 @@ export default function Messages() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-0.5">
-                      <span className="font-bold text-carry-darker text-[13px] truncate">{conv.participant_name}</span>
+                      <span className="font-bold text-carry-darker text-[13px] truncate">{conv.other_participant?.display_name || "User"}</span>
                       <span className="text-[10px] text-gray-400 font-medium">{conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}</span>
                     </div>
                     <p className="text-[11px] text-gray-500 truncate leading-relaxed">
-                      {conv.last_message || "No messages yet"}
+                      {conv.last_message?.content || "No messages yet"}
                     </p>
                   </div>
                 </button>
@@ -160,11 +178,15 @@ export default function Messages() {
             <>
               <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light font-bold text-xs uppercase">
-                    {selectedConv?.participant_name.charAt(0)}
+                  <div className="w-9 h-9 rounded-full bg-carry-light/10 flex items-center justify-center text-carry-light font-bold text-xs uppercase overflow-hidden">
+                    {selectedConv?.other_participant?.avatar_url ? (
+                      <img src={selectedConv.other_participant.avatar_url} alt={selectedConv.other_participant.display_name} className="w-full h-full object-cover" />
+                    ) : (
+                      selectedConv?.other_participant?.display_name?.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div>
-                    <h4 className="font-bold text-carry-darker text-[14px] leading-tight">{selectedConv?.participant_name}</h4>
+                    <h4 className="font-bold text-carry-darker text-[14px] leading-tight">{selectedConv?.other_participant?.display_name || "User"}</h4>
                     <span className="text-[10px] text-green-500 font-bold uppercase tracking-tighter">Online</span>
                   </div>
                 </div>
@@ -180,7 +202,7 @@ export default function Messages() {
                   messages.map((msg) => (
                     <div key={msg.id} className={cn("flex flex-col", msg.is_mine ? "ml-auto items-end" : "mr-auto items-start")}>
                       {/* Text Messages */}
-                      {msg.message_type === "text" && msg.content && (
+                      {msg.type === "text" && msg.content && (
                         <div className={cn("max-w-[80%]", "flex flex-col")}>
                           <div className={cn(
                             "p-3 rounded-md text-[13px] leading-relaxed shadow-sm",
@@ -189,20 +211,20 @@ export default function Messages() {
                             {msg.content}
                           </div>
                           <span className="text-[9px] text-gray-400 mt-1.5 font-bold uppercase tracking-widest px-1">
-                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       )}
 
                       {/* System Messages */}
-                      {msg.message_type === "system" && msg.content && (
+                      {msg.type === "system" && msg.content && (
                         <div className="w-full py-3 px-4 text-center text-[12px] text-gray-500 italic">
                           {msg.content}
                         </div>
                       )}
 
                       {/* Payment Request Messages */}
-                      {msg.message_type === "payment_request" && (
+                      {msg.type === "payment_request" && (
                         <div className={cn("max-w-[80%] w-full", "flex flex-col")}>
                           <div className={cn(
                             "rounded-md shadow-sm overflow-hidden",
@@ -262,8 +284,26 @@ export default function Messages() {
                             </div>
                           </div>
                           <span className="text-[9px] text-gray-400 mt-1.5 font-bold uppercase tracking-widest px-1">
-                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
+                        </div>
+                      )}
+
+                      {/* Image Messages */}
+                      {msg.type === "image" && msg.content && (
+                        <div className={cn("max-w-[80%]", "flex flex-col")}>
+                          <img src={msg.content} alt="Message" className="rounded-md shadow-sm max-h-[300px] object-cover" />
+                          <span className="text-[9px] text-gray-400 mt-1.5 font-bold uppercase tracking-widest px-1">
+                            {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Confirmed Events (pickup_confirmed, delivery_confirmed) */}
+                      {(msg.type === "pickup_confirmed" || msg.type === "delivery_confirmed") && (
+                        <div className="w-full py-3 px-4 text-center text-[12px] text-green-600 bg-green-50 rounded-sm border border-green-100 flex items-center justify-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span className="font-bold uppercase">{msg.type === "pickup_confirmed" ? "Pickup Confirmed" : "Delivery Confirmed"}</span>
                         </div>
                       )}
                     </div>

@@ -1,23 +1,25 @@
 import { ReactNode, useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Package, 
-  MapPin, 
-  PlusCircle, 
-  Send, 
-  Users, 
-  CreditCard, 
-  Wallet, 
-  ShieldCheck, 
-  MessageSquare, 
-  Bell, 
-  Star, 
-  AlertCircle, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Package,
+  MapPin,
+  PlusCircle,
+  Send,
+  Users,
+  CreditCard,
+  Wallet,
+  ShieldCheck,
+  MessageSquare,
+  Bell,
+  Star,
+  AlertCircle,
+  Settings,
   LogOut,
   ChevronRight,
-  User
+  User,
+  BookOpen,
+  AlertTriangle
 } from "lucide-react";
 import Header from "./Header";
 import Footer from "./Footer";
@@ -119,6 +121,9 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
                   <SidebarItem to="/account/my-trips" icon={MapPin} label="My Trips" badge={stats.trips} />
                   <SidebarItem to="/account/matches" icon={Users} label="My Matches" badge={stats.matches} />
                   <SidebarItem to="/account/payments" icon={CreditCard} label="Payments & Escrow" />
+                  <SidebarItem to="/account/wallet" icon={Wallet} label="Wallet" />
+                  <SidebarItem to="/account/bookings" icon={BookOpen} label="Bookings" />
+                  <SidebarItem to="/account/disputes" icon={AlertTriangle} label="Disputes" />
                   <SidebarItem
                     to="/account/kyc"
                     icon={ShieldCheck}
@@ -135,7 +140,6 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
               <div className="pt-4 border-t border-carry-light/20">
                 <nav className="flex flex-col gap-0.5">
                   <SidebarItem to="/account/referrals" icon={Star} label="Refer & Earn" />
-                  <SidebarItem to="/account/disputes" icon={AlertCircle} label="Help & Disputes" />
                 </nav>
               </div>
 

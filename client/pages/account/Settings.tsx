@@ -7,17 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { 
-  User, 
-  Lock, 
-  Bell, 
-  Shield, 
-  Globe, 
-  Mail, 
-  Phone, 
+import {
+  User,
+  Lock,
+  Bell,
+  Shield,
+  Globe,
+  Mail,
+  Phone,
   Camera,
   Loader2,
-  Trash2
+  Trash2,
+  Wallet,
+  ArrowUpRight,
+  Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
@@ -26,6 +29,7 @@ import { useAuthStore } from "@/store/auth-store";
 export default function Settings() {
   const { user, setUser } = useAuthStore();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("personal");
 
   // Use me query to get latest data and pre-populate fields
   const { data: meData, isLoading: isMeLoading } = useQuery({
@@ -165,25 +169,67 @@ export default function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Navigation Sidebar-like Tabs */}
           <div className="space-y-1">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-sm bg-white text-carry-light font-bold text-sm shadow-sm border border-carry-light/10 transition-all">
+            <button
+              onClick={() => setActiveTab("personal")}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-sm font-bold text-sm transition-all",
+                activeTab === "personal"
+                  ? "bg-white text-carry-light shadow-sm border border-carry-light/10"
+                  : "text-carry-muted hover:bg-white hover:text-carry-light"
+              )}>
               <User className="w-4 h-4" />
               Personal Info
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-sm text-carry-muted font-bold text-sm hover:bg-white hover:text-carry-light transition-all">
+            <button
+              onClick={() => setActiveTab("security")}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-sm font-bold text-sm transition-all",
+                activeTab === "security"
+                  ? "bg-white text-carry-light shadow-sm border border-carry-light/10"
+                  : "text-carry-muted hover:bg-white hover:text-carry-light"
+              )}>
               <Lock className="w-4 h-4" />
               Security
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-sm text-carry-muted font-bold text-sm hover:bg-white hover:text-carry-light transition-all">
+            <button
+              onClick={() => setActiveTab("notifications")}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-sm font-bold text-sm transition-all",
+                activeTab === "notifications"
+                  ? "bg-white text-carry-light shadow-sm border border-carry-light/10"
+                  : "text-carry-muted hover:bg-white hover:text-carry-light"
+              )}>
               <Bell className="w-4 h-4" />
               Notifications
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-sm text-carry-muted font-bold text-sm hover:bg-white hover:text-carry-light transition-all">
+            <button
+              onClick={() => setActiveTab("verification")}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-sm font-bold text-sm transition-all",
+                activeTab === "verification"
+                  ? "bg-white text-carry-light shadow-sm border border-carry-light/10"
+                  : "text-carry-muted hover:bg-white hover:text-carry-light"
+              )}>
               <Shield className="w-4 h-4" />
               Verification
+            </button>
+            <button
+              onClick={() => setActiveTab("withdraw")}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-sm font-bold text-sm transition-all",
+                activeTab === "withdraw"
+                  ? "bg-white text-carry-light shadow-sm border border-carry-light/10"
+                  : "text-carry-muted hover:bg-white hover:text-carry-light"
+              )}>
+              <ArrowUpRight className="w-4 h-4" />
+              Withdraw
             </button>
           </div>
 
           <div className="md:col-span-2 space-y-6">
+            {/* Personal Info Tab */}
+            {activeTab === "personal" && (
+            <>
             {/* Profile Section */}
             <Card className="border-none shadow-sm overflow-hidden bg-white">
               <CardHeader className="border-b border-gray-50 pb-6">
@@ -314,6 +360,89 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
+            </>
+            )}
+
+            {/* Withdraw Tab */}
+            {activeTab === "withdraw" && (
+            <>
+            <Card className="border-none shadow-sm overflow-hidden bg-white">
+              <CardHeader className="border-b border-gray-50 pb-6">
+                <CardTitle className="text-lg font-bold text-carry-darker">Withdraw Funds</CardTitle>
+                <CardDescription>Withdraw your earnings to your bank account.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 space-y-8">
+                {/* Wallet Balance */}
+                <div className="bg-carry-bg rounded-sm p-6 border border-carry-light/20">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest">Available Balance</span>
+                  </div>
+                  <div className="text-4xl font-black text-carry-light mb-2">
+                    $1,250.50
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 space-y-1">
+                    <span>💡 You can withdraw funds once your KYC is verified</span>
+                  </div>
+                </div>
+
+                {/* Payout Account Management */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-bold text-carry-darker text-sm mb-3">Payout Accounts</h4>
+                    <div className="space-y-3">
+                      {/* Sample payout account card */}
+                      <div className="p-4 border border-gray-200 rounded-sm bg-gray-50/50">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-bold text-carry-darker text-sm">GT Bank</p>
+                            <p className="text-xs text-gray-500 font-medium mt-1">****6789 • ADAEZE OKAFOR</p>
+                          </div>
+                          <Badge className="bg-green-50 text-green-600 border-none text-[9px] font-bold uppercase">Default</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button variant="outline" className="w-full border-carry-light text-carry-light hover:bg-carry-light hover:text-white font-bold text-xs uppercase tracking-widest h-10">
+                    <Plus className="w-4 h-4 mr-2" /> Add New Account
+                  </Button>
+                </div>
+
+                {/* Withdrawal Form */}
+                <div className="space-y-6 pt-4 border-t border-gray-100">
+                  <h4 className="font-bold text-carry-darker text-sm">Request Withdrawal</h4>
+
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Withdrawal Amount</Label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-carry-light font-bold">$</span>
+                      <Input placeholder="0.00" className="pl-8 border-gray-200 focus:border-carry-light" type="number" step="0.01" />
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-medium">Minimum withdrawal: $10.00</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Payout Account</Label>
+                    <select className="w-full px-4 py-2.5 border border-gray-200 rounded-sm focus:border-carry-light focus:outline-none text-sm">
+                      <option>GT Bank - ****6789</option>
+                      <option>Other Account</option>
+                    </select>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-sm p-4">
+                    <p className="text-[11px] text-blue-700 leading-relaxed">
+                      💳 Withdrawals typically arrive within 1-2 business days. A processing fee of 1% will be deducted from the withdrawal amount.
+                    </p>
+                  </div>
+
+                  <Button className="w-full bg-carry-light hover:bg-carry-light/90 text-white font-bold h-11 px-8 shadow-md uppercase tracking-widest text-xs">
+                    Request Withdrawal
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            </>
+            )}
           </div>
         </div>
       </div>

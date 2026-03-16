@@ -35,7 +35,6 @@ import { shipmentsApi } from "@/api/shipments.api";
 import { dashboardApi } from "@/api/dashboard.api";
 import { matchesApi } from "@/api/matches.api";
 import { apiClient } from "@/lib/api-client";
-import EditIconButton from "@/components/ui/EditIconButton";
 import EditModal, { EditField } from "@/components/modals/EditModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +62,7 @@ export default function ShipmentDetail() {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
-  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editValues, setEditValues] = useState<any>({});
 
   const { data: shipment, isLoading, refetch } = useQuery({
@@ -190,100 +189,88 @@ export default function ShipmentDetail() {
     senderRequestMutation.mutate(selectedListingId);
   };
 
-  const handleOpenEditModal = (section: string, initialValues: any) => {
-    setEditingSection(section);
-    setEditValues(initialValues);
+  const handleOpenEditModal = () => {
+    // Initialize all editable fields
+    setEditValues({
+      title: shipment?.title || shipment?.item_description || "",
+      declared_weight_kg: shipment?.declared_weight_kg || 0,
+      pickup_deadline: shipment?.pickup_deadline?.split("T")[0] || "",
+      offered_price: shipment?.offered_price || 0,
+      currency: shipment?.currency || "USD",
+      item_description: shipment?.item_description || "",
+      special_handling: shipment?.special_handling || "",
+    });
+    setIsEditModalOpen(true);
   };
 
   const handleSaveEdit = () => {
-    if (editingSection) {
-      updateShipmentMutation.mutate(editValues);
-    }
+    updateShipmentMutation.mutate(editValues);
   };
 
   const handleCancelEdit = () => {
-    setEditingSection(null);
+    setIsEditModalOpen(false);
     setEditValues({});
   };
 
-  // Define editable sections with their modal configuration
-  const getEditModalFields = (): EditField[] => {
-    switch (editingSection) {
-      case "title":
-        return [
-          {
-            name: "title",
-            label: "Shipment Title",
-            type: "text",
-            value: editValues.title || "",
-            onChange: (v) => setEditValues({ ...editValues, title: v }),
-            required: true,
-          },
-        ];
-      case "weight_deadline":
-        return [
-          {
-            name: "declared_weight_kg",
-            label: "Declared Weight (kg)",
-            type: "number",
-            value: editValues.declared_weight_kg || 0,
-            onChange: (v) => setEditValues({ ...editValues, declared_weight_kg: v }),
-            required: true,
-            min: 0,
-          },
-          {
-            name: "pickup_deadline",
-            label: "Pickup Deadline",
-            type: "date",
-            value: editValues.pickup_deadline?.split("T")[0] || "",
-            onChange: (v) => setEditValues({ ...editValues, pickup_deadline: v }),
-            required: true,
-          },
-        ];
-      case "budget":
-        return [
-          {
-            name: "budget",
-            label: "Offer Budget",
-            type: "number",
-            value: editValues.budget || 0,
-            onChange: (v) => setEditValues({ ...editValues, budget: v }),
-            required: true,
-            min: 0,
-          },
-          {
-            name: "currency",
-            label: "Currency",
-            type: "text",
-            value: editValues.currency || "USD",
-            onChange: (v) => setEditValues({ ...editValues, currency: v }),
-            required: true,
-          },
-        ];
-      case "item_description":
-        return [
-          {
-            name: "item_description",
-            label: "Full Description",
-            type: "textarea",
-            value: editValues.item_description || "",
-            onChange: (v) => setEditValues({ ...editValues, item_description: v }),
-          },
-        ];
-      case "special_handling":
-        return [
-          {
-            name: "special_handling",
-            label: "Special Handling Instructions",
-            type: "textarea",
-            value: editValues.special_handling || "",
-            onChange: (v) => setEditValues({ ...editValues, special_handling: v }),
-          },
-        ];
-      default:
-        return [];
-    }
-  };
+  // All editable fields in one modal
+  const getEditModalFields = (): EditField[] => [
+    {
+      name: "title",
+      label: "Shipment Title",
+      type: "text",
+      value: editValues.title || "",
+      onChange: (v) => setEditValues({ ...editValues, title: v }),
+      required: true,
+    },
+    {
+      name: "declared_weight_kg",
+      label: "Declared Weight (kg)",
+      type: "number",
+      value: editValues.declared_weight_kg || 0,
+      onChange: (v) => setEditValues({ ...editValues, declared_weight_kg: v }),
+      required: true,
+      min: 0,
+    },
+    {
+      name: "pickup_deadline",
+      label: "Pickup Deadline",
+      type: "date",
+      value: editValues.pickup_deadline?.split("T")[0] || "",
+      onChange: (v) => setEditValues({ ...editValues, pickup_deadline: v }),
+      required: true,
+    },
+    {
+      name: "offered_price",
+      label: "Offered Reward / Budget",
+      type: "number",
+      value: editValues.offered_price || 0,
+      onChange: (v) => setEditValues({ ...editValues, offered_price: v }),
+      required: true,
+      min: 0,
+    },
+    {
+      name: "currency",
+      label: "Currency",
+      type: "text",
+      value: editValues.currency || "USD",
+      onChange: (v) => setEditValues({ ...editValues, currency: v }),
+      required: true,
+    },
+    {
+      name: "item_description",
+      label: "Item Description",
+      type: "textarea",
+      value: editValues.item_description || "",
+      onChange: (v) => setEditValues({ ...editValues, item_description: v }),
+    },
+    {
+      name: "special_handling",
+      label: "Special Handling Instructions",
+      type: "textarea",
+      value: editValues.special_handling || "",
+      onChange: (v) => setEditValues({ ...editValues, special_handling: v }),
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -413,20 +400,8 @@ export default function ShipmentDetail() {
                           </Badge>
                         )}
                       </div>
-                      <h1 className="text-3xl font-black text-carry-darker leading-tight relative">
+                      <h1 className="text-3xl font-black text-carry-darker leading-tight">
                         {shipment.title || shipment.item_description}
-                        {isOwner && (
-                          <div className="absolute -top-2 -right-12 p-2">
-                            <EditIconButton
-                              onClick={() =>
-                                handleOpenEditModal("title", {
-                                  title: shipment.title || shipment.item_description,
-                                })
-                              }
-                              tooltip="Edit title"
-                            />
-                          </div>
-                        )}
                       </h1>
                       <div className="flex items-center gap-6 text-sm text-gray-500">
                         <div className="flex items-center gap-2 font-bold text-carry-darker">
@@ -436,7 +411,7 @@ export default function ShipmentDetail() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50 relative">
+                    <div className="grid grid-cols-2 gap-8 pt-6 border-t border-gray-50">
                       <div className="space-y-1">
                         <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Declared Weight</span>
                         <span className="text-lg font-bold text-carry-darker">{shipment.declared_weight_kg} kg</span>
@@ -447,19 +422,6 @@ export default function ShipmentDetail() {
                           {new Date(shipment.pickup_deadline).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
                         </span>
                       </div>
-                      {isOwner && (
-                        <div className="absolute -right-12 top-0 p-2">
-                          <EditIconButton
-                            onClick={() =>
-                              handleOpenEditModal("weight_deadline", {
-                                declared_weight_kg: shipment.declared_weight_kg,
-                                pickup_deadline: shipment.pickup_deadline?.split("T")[0],
-                              })
-                            }
-                            tooltip="Edit weight & deadline"
-                          />
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -475,20 +437,8 @@ export default function ShipmentDetail() {
                 </div>
                 
                 <div className="space-y-6">
-                    <div className="space-y-3 relative">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-carry-muted font-bold uppercase tracking-widest">Full Description</p>
-                        {isOwner && (
-                          <EditIconButton
-                            onClick={() =>
-                              handleOpenEditModal("item_description", {
-                                item_description: shipment.item_description,
-                              })
-                            }
-                            tooltip="Edit description"
-                          />
-                        )}
-                      </div>
+                    <div className="space-y-3">
+                      <p className="text-sm text-carry-muted font-bold uppercase tracking-widest">Full Description</p>
                       <p className="text-base text-carry-darker leading-relaxed">
                         {shipment.item_description || "No detailed description provided."}
                       </p>
@@ -531,19 +481,18 @@ export default function ShipmentDetail() {
             <div className="space-y-6">
               {/* Reward & Sender Card (Mobile and Desktop) */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8 space-y-6">
-                <div className="space-y-2 relative">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Offered Reward</span>
                     {isOwner && (
-                      <EditIconButton
-                        onClick={() =>
-                          handleOpenEditModal("budget", {
-                            budget: shipment.offered_price,
-                            currency: shipment.currency,
-                          })
-                        }
-                        tooltip="Edit budget"
-                      />
+                      <Button
+                        onClick={handleOpenEditModal}
+                        variant="outline"
+                        size="sm"
+                        className="border-carry-light text-carry-light hover:bg-carry-light hover:text-white font-bold text-xs uppercase tracking-widest h-8"
+                      >
+                        Edit
+                      </Button>
                     )}
                   </div>
                   <div className="text-4xl font-black text-carry-light">
@@ -763,24 +712,15 @@ export default function ShipmentDetail() {
 
       {/* Edit Modal */}
       <EditModal
-        open={!!editingSection}
+        open={isEditModalOpen}
         onOpenChange={(open) => {
           if (!open) {
-            setEditingSection(null);
+            setIsEditModalOpen(false);
             setEditValues({});
           }
         }}
-        title={`Edit ${
-          editingSection === "title"
-            ? "Title"
-            : editingSection === "weight_deadline"
-            ? "Weight & Deadline"
-            : editingSection === "budget"
-            ? "Budget & Currency"
-            : editingSection === "item_description"
-            ? "Description"
-            : "Special Handling"
-        }`}
+        title="Edit Shipment Request"
+        description="Update all details of your shipment request."
         fields={getEditModalFields()}
         onSave={handleSaveEdit}
         onCancel={handleCancelEdit}

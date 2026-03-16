@@ -42,30 +42,16 @@ export default function PublicProfile() {
     queryFn: async () => {
       try {
         const [listingsRes, shipmentsRes] = await Promise.all([
-          apiClient.get(`/travel-listings/browse?limit=100&page=1`),
-          apiClient.get(`/shipments/browse?limit=100&page=1`)
+          apiClient.get(`/travel-listings?limit=100&page=1&traveler_id=${id}`),
+          apiClient.get(`/shipments?limit=100&page=1&sender_id=${id}`)
         ]);
 
         // Handle both formats: array and object with listings/shipments property
         const listingsData = listingsRes.data.data;
         const shipmentsData = shipmentsRes.data.data;
 
-        const allListings = Array.isArray(listingsData) ? listingsData : (listingsData?.listings || []);
-        const allShipments = Array.isArray(shipmentsData) ? shipmentsData : (shipmentsData?.shipments || []);
-
-        // Filter results by user_id on client side
-        // Check both user_id and traveler.id / sender.id
-        const userListings = allListings.filter((listing: any) =>
-          listing.user_id === id ||
-          listing.traveler_id === id ||
-          listing.traveler?.id === id
-        );
-
-        const userShipments = allShipments.filter((shipment: any) =>
-          shipment.user_id === id ||
-          shipment.sender_id === id ||
-          shipment.sender?.id === id
-        );
+        const userListings = Array.isArray(listingsData) ? listingsData : (listingsData?.listings || listingsData?.data || []);
+        const userShipments = Array.isArray(shipmentsData) ? shipmentsData : (shipmentsData?.requests || shipmentsData?.data || []);
 
         return {
           listings: userListings,

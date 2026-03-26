@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,9 @@ import { authApi } from "@/api/auth.api";
 import { toast } from "sonner";
 import { Mail, Phone, Lock, User, Globe, Loader2, Eye, EyeOff, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
+import { cookieUtils } from "@/lib/cookie-utils";
 
 type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password" | "forgot_password" | "forgot_otp" | "reset_password";
 
@@ -17,6 +18,8 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: "login" | "register";
+  initialStep?: AuthStep;
+  initialEmail?: string;
 }
 
 export default function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
@@ -36,6 +39,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
   const [isLoading, setIsLoading] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(initialMode === "login");
   const [isNewUser, setIsNewUser] = useState(false);
+  const [isLoginVerification, setIsLoginVerification] = useState(false); // Track if this is login verification
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<any>(null);
@@ -65,6 +69,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     if (isOpen) {
       setIsLoginMode(initialMode === "login");
       setStep("email");
+      setIsLoginVerification(false); // Reset login verification flag
+      setIsNewUser(false); // Reset new user flag
     }
   }, [isOpen, initialMode]);
 
@@ -91,11 +97,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       
       const { user, access_token, refresh_token } = response.data;
       console.log("[AUTH DEBUG] User object from login:", user);
-      console.log("[AUTH DEBUG] User email_verified:", user.email_verified);
       console.log("[AUTH DEBUG] User is_email_verified:", user.is_email_verified);
+      console.log("[AUTH DEBUG] User is_phone_verified:", user.is_phone_verified);
       
       localStorage.setItem("access_token", access_token);
-      localStorage.setItem("refresh_token", refresh_token);
+      cookieUtils.set("refresh_token", refresh_token, 30);
       setUser(user);
       toast.success("Welcome back!");
       onClose();
@@ -114,26 +120,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       // Handle verification errors
       if (errorCode === 'EMAIL_NOT_VERIFIED' || errorMessage.includes('verify your email')) {
         toast.info("Please verify your email address to continue");
-        // Send email verification OTP
-        try {
-          await authApi.resendEmailVerification(email);
-          setStep("email_otp");
-          toast.success("Verification code sent to your email");
-        } catch (resendError) {
-          console.log("[AUTH DEBUG] Resend error:", resendError);
-          toast.error("Failed to send verification code");
-        }
+        setIsLoginVerification(true); // Mark as login verification
+        setStep("email_otp");
+        toast.success("Verification code sent to your email");
       } else if (errorCode === 'PHONE_NOT_VERIFIED' || errorMessage.includes('verify your phone')) {
         toast.info("Please verify your phone number to continue");
-        // Send phone verification OTP
-        try {
-          await authApi.sendPhoneOTP(email);
-          setStep("phone_otp");
-          toast.success("Verification code sent to your phone");
-        } catch (resendError) {
-          console.log("[AUTH DEBUG] Resend error:", resendError);
-          toast.error("Failed to send verification code");
-        }
+        setIsLoginVerification(true); // Mark as login verification
+        setStep("phone_otp");
+        toast.success("Verification code sent to your phone");
       } else {
         toast.error(errorMessage);
         
@@ -217,15 +211,28 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       const response = await authApi.verifyEmail(email, otp);
       setOtp("");
       
-      // Check if this is a login verification or registration flow
-      if (response.data?.user && response.data?.access_token) {
-        // User is fully verified and logged in
-        const { user, access_token, refresh_token } = response.data;
-        localStorage.setItem("access_token", access_token);
-        localStorage.setItem("refresh_token", refresh_token);
-        setUser(user);
-        toast.success("Email verified! Welcome back!");
-        onClose();
+      // Check if this is a login verification (user already exists and is trying to login)
+      if (isLoginVerification) {
+        // This is login verification - check if phone also needs verification
+        try {
+          // Try to login after email verification
+          const loginResponse = await authApi.login(email, password);
+          const { user, access_token, refresh_token } = loginResponse.data;
+          localStorage.setItem("access_token", access_token);
+          cookieUtils.set("refresh_token", refresh_token, 30);
+          setUser(user);
+          toast.success("Email verified! Welcome back!");
+          onClose();
+        } catch (loginError: any) {
+          const loginErrorCode = loginError.response?.data?.error?.code || loginError.response?.data?.code;
+          if (loginErrorCode === 'PHONE_NOT_VERIFIED') {
+            // Phone verification needed
+            setStep("phone_otp");
+            toast.success("Email verified! Now verify your phone number.");
+          } else {
+            throw loginError;
+          }
+        }
       } else {
         // Registration flow - need to verify phone next
         await authApi.sendPhoneOTP(email);
@@ -261,7 +268,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       }
 
       // Prepare registration data
-      const registrationData = {
+      const registrationData: any = {
         email,
         first_name: firstName,
         last_name: lastName,
@@ -286,6 +293,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       if (recaptchaRef.current) {
         recaptchaRef.current.reset();
       }
+      toast.success("Registration successful! Please verify your email to continue.");
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Registration failed");
       setRecaptchaToken(null);
@@ -303,20 +311,37 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     setErrors({});
     try {
       const response = await authApi.verifyPhone(email, otp);
-      const { user, access_token, refresh_token } = response.data;
-      localStorage.setItem("access_token", access_token);
-      localStorage.setItem("refresh_token", refresh_token);
-      setUser(user);
       
-      if (isNewUser) {
-        toast.success("Account verified successfully!");
-        onClose();
-        // Redirect to dashboard with tutorial flag for new users
-        navigate("/account/dashboard?tutorial=true");
+      // Check if we get login tokens back (for login verification flow)
+      if (response.data?.user && response.data?.access_token) {
+        const { user, access_token, refresh_token } = response.data;
+        localStorage.setItem("access_token", access_token);
+        cookieUtils.set("refresh_token", refresh_token, 30);
+        setUser(user);
+        
+        if (isLoginVerification) {
+          toast.success("Phone verified! Welcome back!");
+          onClose();
+          navigate("/account/dashboard");
+        } else if (isNewUser) {
+          toast.success("Account created successfully! Welcome to CarryLink!");
+          onClose();
+          navigate("/account/dashboard");
+        } else {
+          toast.success("Phone verified! Welcome back!");
+          onClose();
+          navigate("/account/dashboard");
+        }
       } else {
-        toast.success("Phone verified! Welcome back!");
+        // Registration completion - user needs to login
+        toast.success("Account created successfully! Please sign in to continue.");
         onClose();
-        navigate("/account/dashboard");
+        // Reset form and redirect to login
+        setStep("login_password");
+        setPassword("");
+        setIsLoginMode(true);
+        setIsNewUser(false);
+        setIsLoginVerification(false);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Invalid phone OTP");

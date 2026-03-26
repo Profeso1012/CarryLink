@@ -151,11 +151,14 @@ export default function PublicProfile() {
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  {profile.badges?.map((badge: string) => (
-                    <Badge key={badge} variant="outline" className="text-[10px] font-bold uppercase tracking-widest border-carry-light/20 text-carry-light bg-carry-light/5">
-                      {badge.replace("_", " ")}
-                    </Badge>
-                  ))}
+                  {profile.badges?.map((badge: string | any, index: number) => {
+                    const badgeText = typeof badge === 'string' ? badge : String(badge);
+                    return (
+                      <Badge key={index} variant="outline" className="text-[10px] font-bold uppercase tracking-widest border-carry-light/20 text-carry-light bg-carry-light/5">
+                        {badgeText.replace(/_/g, " ")}
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
 

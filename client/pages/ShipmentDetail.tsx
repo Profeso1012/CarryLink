@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
@@ -65,16 +65,44 @@ export default function ShipmentDetail() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editValues, setEditValues] = useState<any>({});
 
-  const { data: shipment, isLoading, refetch } = useQuery({
+  useEffect(() => {
+    console.log("[ShipmentDetail] ✅ Component mounted — id from params:", id);
+    return () => console.log("[ShipmentDetail] Component unmounted");
+  }, [id]);
+
+  const { data: shipment, isLoading, refetch, error: shipmentError } = useQuery({
     queryKey: ["shipment", id],
     queryFn: async () => {
-      return shipmentsApi.getById(id!);
+      console.log("[ShipmentDetail] Fetching shipment id:", id);
+      try {
+        const result = await shipmentsApi.getById(id!);
+        console.log("[ShipmentDetail] Shipment data:", result);
+        console.log("[ShipmentDetail] sender:", result?.sender);
+        console.log("[ShipmentDetail] images:", result?.images);
+        return result;
+      } catch (err: any) {
+        console.error("[ShipmentDetail] Fetch error:", err);
+        console.error("[ShipmentDetail] Error response:", err.response?.data);
+        throw err;
+      }
     }
   });
 
+  console.log("[ShipmentDetail] Render — id:", id, "| isLoading:", isLoading, "| shipment:", shipment, "| error:", shipmentError);
+
   const { data: categories } = useQuery({
     queryKey: ["categories"],
-    queryFn: () => categoriesApi.getAll()
+    queryFn: async () => {
+      console.log("[ShipmentDetail] Fetching categories...");
+      try {
+        const result = await categoriesApi.getAll();
+        console.log("[ShipmentDetail] Categories:", result);
+        return result;
+      } catch (err: any) {
+        console.error("[ShipmentDetail] Categories fetch error:", err.response?.data || err);
+        throw err;
+      }
+    }
   });
 
   const getCategoryName = (categoryId: string) => {
@@ -88,8 +116,15 @@ export default function ShipmentDetail() {
     queryKey: ["matches-for-shipment", id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await matchesApi.getForShipment(id, { limit: 10 });
-      return response;
+      console.log("[ShipmentDetail] Fetching matches for shipment:", id);
+      try {
+        const response = await matchesApi.getForShipment(id, { limit: 10 });
+        console.log("[ShipmentDetail] Matches response:", response);
+        return response;
+      } catch (err: any) {
+        console.error("[ShipmentDetail] Matches fetch error:", err.response?.data || err);
+        throw err;
+      }
     },
     enabled: !!id
   });
@@ -165,7 +200,7 @@ export default function ShipmentDetail() {
     onSuccess: () => {
       toast.success("Shipment updated successfully");
       queryClient.invalidateQueries({ queryKey: ["shipment", id] });
-      setIsEditing(null);
+      setIsEditModalOpen(false);
       setEditValues({});
     },
     onError: (error: any) => {
@@ -192,13 +227,11 @@ export default function ShipmentDetail() {
   const handleOpenEditModal = () => {
     // Initialize all editable fields
     setEditValues({
-      title: shipment?.title || shipment?.item_description || "",
+      item_description: shipment?.item_description || "",
       declared_weight_kg: shipment?.declared_weight_kg || 0,
       pickup_deadline: shipment?.pickup_deadline?.split("T")[0] || "",
       offered_price: shipment?.offered_price || 0,
       currency: shipment?.currency || "USD",
-      item_description: shipment?.item_description || "",
-      special_handling: shipment?.special_handling || "",
     });
     setIsEditModalOpen(true);
   };
@@ -215,11 +248,11 @@ export default function ShipmentDetail() {
   // All editable fields in one modal
   const getEditModalFields = (): EditField[] => [
     {
-      name: "title",
-      label: "Shipment Title",
-      type: "text",
-      value: editValues.title || "",
-      onChange: (v) => setEditValues({ ...editValues, title: v }),
+      name: "item_description",
+      label: "Item Description",
+      type: "textarea",
+      value: editValues.item_description || "",
+      onChange: (v) => setEditValues({ ...editValues, item_description: v }),
       required: true,
     },
     {
@@ -256,23 +289,10 @@ export default function ShipmentDetail() {
       onChange: (v) => setEditValues({ ...editValues, currency: v }),
       required: true,
     },
-    {
-      name: "item_description",
-      label: "Item Description",
-      type: "textarea",
-      value: editValues.item_description || "",
-      onChange: (v) => setEditValues({ ...editValues, item_description: v }),
-    },
-    {
-      name: "special_handling",
-      label: "Special Handling Instructions",
-      type: "textarea",
-      value: editValues.special_handling || "",
-      onChange: (v) => setEditValues({ ...editValues, special_handling: v }),
-    },
   ];
 
   if (isLoading) {
+    console.log("[ShipmentDetail] Still loading...");
     return (
       <div className="min-h-screen bg-carry-bg flex flex-col">
         <Header />
@@ -285,6 +305,7 @@ export default function ShipmentDetail() {
   }
 
   if (!shipment) {
+    console.warn("[ShipmentDetail] No shipment data — id:", id, "| error:", shipmentError);
     return (
       <div className="min-h-screen bg-carry-bg flex flex-col">
         <Header />
@@ -300,6 +321,8 @@ export default function ShipmentDetail() {
       </div>
     );
   }
+
+  console.log("[ShipmentDetail] Rendering full page — shipment:", shipment, "| sender:", shipment.sender, "| item_category_id:", shipment.item_category_id);
 
   return (
     <div className="min-h-screen bg-carry-bg flex flex-col">
@@ -329,7 +352,7 @@ export default function ShipmentDetail() {
                       {shipment.images?.length > 0 ? (
                         <img
                           src={activeImage || shipment.images[0].url}
-                          alt={shipment.title}
+                          alt={shipment.item_description}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -401,7 +424,7 @@ export default function ShipmentDetail() {
                         )}
                       </div>
                       <h1 className="text-3xl font-black text-carry-darker leading-tight">
-                        {shipment.title || shipment.item_description}
+                        {shipment.item_description}
                       </h1>
                       <div className="flex items-center gap-6 text-sm text-gray-500">
                         <div className="flex items-center gap-2 font-bold text-carry-darker">
@@ -452,15 +475,15 @@ export default function ShipmentDetail() {
                       <div className="flex items-center gap-4 text-sm font-bold text-carry-darker">
                         <div className="flex flex-col">
                           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Length</span>
-                          <span>{shipment.length_cm || "10"}cm</span>
+                          <span>10cm</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Width</span>
-                          <span>{shipment.width_cm || "10"}cm</span>
+                          <span>10cm</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Height</span>
-                          <span>{shipment.height_cm || "10"}cm</span>
+                          <span>10cm</span>
                         </div>
                       </div>
                     </div>
@@ -546,7 +569,7 @@ export default function ShipmentDetail() {
                           <User className="w-8 h-8 text-carry-light" />
                         )}
                       </div>
-                      {shipment.sender.is_verified && (
+                      {shipment.sender.trust_score > 80 && (
                         <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
                           <ShieldCheck className="w-5 h-5 text-green-500 fill-green-50" />
                         </div>

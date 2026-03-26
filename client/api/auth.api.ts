@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api-client";
 import { User } from "@/store/auth-store";
+import { cookieUtils } from "@/lib/cookie-utils";
 
 export interface RegisterRequest {
   email: string;
@@ -55,7 +56,7 @@ export const authApi = {
   },
 
   logout: async () => {
-    const refresh_token = localStorage.getItem("refresh_token");
+    const refresh_token = cookieUtils.get("refresh_token");
     if (refresh_token) {
       await apiClient.post("/auth/logout", { refresh_token });
     }

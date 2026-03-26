@@ -14,13 +14,13 @@ export interface ItemCategory {
 export const categoriesApi = {
   // Get all categories
   getAll: async (): Promise<ItemCategory[]> => {
-    const response = await apiClient.get("item-categories");
-    return response.data.data || [];
+    const response = await apiClient.get("categories");
+    return response.data.data.categories || [];
   },
 
   // Get category by ID
   getById: async (id: string): Promise<ItemCategory> => {
-    const response = await apiClient.get(`item-categories/${id}`);
+    const response = await apiClient.get(`categories/${id}`);
     return response.data.data;
   }
 };

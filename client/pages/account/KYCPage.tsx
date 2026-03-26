@@ -7,16 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 import { ShieldCheck, ShieldAlert, Clock, Loader2, Globe, FileCheck, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
+import AuthModal from "@/components/auth/AuthModal";
 
 export default function KYCPage() {
   const { user, setUser } = useAuthStore();
   const [idType, setIdType] = useState("passport");
   const [idCountry, setIdCountry] = useState("NG");
   const [idNumber, setIdNumber] = useState("");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const { data: statusData, isLoading: isStatusLoading, refetch: refetchStatus } = useQuery({
     queryKey: ["kyc-status"],
@@ -158,8 +159,13 @@ export default function KYCPage() {
                     Please verify your email address before starting identity verification.
                   </p>
                 </div>
-                <Button asChild variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100">
-                  <Link to="/verify-email">Verify Email</Link>
+                <Button 
+                  onClick={() => setIsAuthModalOpen(true)}
+                  variant="outline" 
+                  size="sm" 
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                >
+                  Verify Email
                 </Button>
               </div>
             )}
@@ -291,6 +297,12 @@ export default function KYCPage() {
           </div>
         </div>
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode="login"
+      />
     </AccountLayout>
   );
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cookieUtils } from "@/lib/cookie-utils";
 
 export interface User {
   id: string;
@@ -40,8 +41,8 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => {
         console.log("[AUTH STORE DEBUG] Setting user:", user);
         if (user) {
-          console.log("[AUTH STORE DEBUG] User email_verified:", user.email_verified);
           console.log("[AUTH STORE DEBUG] User is_email_verified:", user.is_email_verified);
+          console.log("[AUTH STORE DEBUG] User is_phone_verified:", user.is_phone_verified);
         }
         if (user && user.profile?.avatar_url && !user.avatar_url) {
           user.avatar_url = user.profile.avatar_url;
@@ -51,7 +52,7 @@ export const useAuthStore = create<AuthState>()(
       setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setLoading: (isLoading) => set({ isLoading }),
       logout: () => {
-        const refreshToken = localStorage.getItem("refresh_token");
+        const refreshToken = cookieUtils.get("refresh_token");
         if (refreshToken) {
           // Call backend logout API to revoke tokens
           import("@/lib/api-client").then(({ apiClient }) => {
@@ -62,7 +63,7 @@ export const useAuthStore = create<AuthState>()(
           });
         }
         localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        cookieUtils.remove("refresh_token");
         set({ user: null, isAuthenticated: false });
       },
     }),

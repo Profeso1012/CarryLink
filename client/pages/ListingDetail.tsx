@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
@@ -57,20 +57,44 @@ export default function ListingDetail() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editValues, setEditValues] = useState<any>({});
 
-  const { data: listing, isLoading } = useQuery({
+  useEffect(() => {
+    console.log("[ListingDetail] ✅ Component mounted — id from params:", id);
+    return () => console.log("[ListingDetail] Component unmounted");
+  }, [id]);
+
+  const { data: listing, isLoading, error: listingError } = useQuery({
     queryKey: ["listing", id],
     queryFn: async () => {
-      const response = await apiClient.get(`/travel-listings/${id}`);
-      return response.data.data;
+      console.log("[ListingDetail] Fetching listing id:", id);
+      try {
+        const response = await apiClient.get(`/travel-listings/${id}`);
+        console.log("[ListingDetail] Raw response:", response);
+        console.log("[ListingDetail] response.data:", response.data);
+        console.log("[ListingDetail] response.data.data:", response.data.data);
+        return response.data.data;
+      } catch (err: any) {
+        console.error("[ListingDetail] Fetch error:", err);
+        console.error("[ListingDetail] Error response:", err.response?.data);
+        throw err;
+      }
     }
   });
+
+  console.log("[ListingDetail] Render — id:", id, "| isLoading:", isLoading, "| listing:", listing, "| error:", listingError);
 
   const { data: matchingShipments } = useQuery({
     queryKey: ["matches-for-listing", id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await matchesApi.getForListing(id, { limit: 10 });
-      return response;
+      console.log("[ListingDetail] Fetching matches for listing:", id);
+      try {
+        const response = await matchesApi.getForListing(id, { limit: 10 });
+        console.log("[ListingDetail] Matches response:", response);
+        return response;
+      } catch (err: any) {
+        console.error("[ListingDetail] Matches fetch error:", err.response?.data || err);
+        throw err;
+      }
     },
     enabled: !!id
   });
@@ -110,7 +134,7 @@ export default function ListingDetail() {
     onSuccess: () => {
       toast.success("Listing updated successfully");
       queryClient.invalidateQueries({ queryKey: ["listing", id] });
-      setIsEditing(null);
+      setIsEditModalOpen(false);
       setEditValues({});
     },
     onError: (error: any) => {
@@ -255,6 +279,7 @@ export default function ListingDetail() {
   ];
 
   if (isLoading) {
+    console.log("[ListingDetail] Still loading...");
     return (
       <div className="min-h-screen bg-carry-bg flex flex-col">
         <Header />
@@ -267,6 +292,7 @@ export default function ListingDetail() {
   }
 
   if (!listing) {
+    console.warn("[ListingDetail] No listing data — id:", id, "| error:", listingError);
     return (
       <div className="min-h-screen bg-carry-bg flex flex-col">
         <Header />
@@ -282,6 +308,8 @@ export default function ListingDetail() {
       </div>
     );
   }
+
+  console.log("[ListingDetail] Rendering full page — listing:", listing, "| traveler:", listing.traveler, "| categories:", listing.accepted_categories);
 
   return (
     <div className="min-h-screen bg-carry-bg flex flex-col">

@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { cookieUtils } from "./cookie-utils";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api/v1";
 const IS_TEST_MODE = import.meta.env.VITE_APP_ENV === "test";
@@ -17,35 +18,28 @@ export const apiClient = axios.create({
 
 // Request logging for test mode AND KYC debugging
 apiClient.interceptors.request.use((config) => {
-  if (IS_TEST_MODE || config.url?.includes('kyc')) {
-    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, {
-      params: config.params,
-      data: config.data,
-      headers: config.headers,
-    });
-  }
+  console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`, {
+    params: config.params,
+    data: config.data,
+  });
   return config;
 });
 
 // Response logging for test mode AND KYC debugging
 apiClient.interceptors.response.use(
   (response) => {
-    if (IS_TEST_MODE || response.config.url?.includes('kyc')) {
-      console.log(`[API RESPONSE SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-        status: response.status,
-        data: response.data,
-      });
-    }
+    console.log(`[API RESPONSE ✓] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      status: response.status,
+      data: response.data,
+    });
     return response;
   },
   (error) => {
-    if (IS_TEST_MODE || error.config?.url?.includes('kyc')) {
-      console.error(`[API RESPONSE ERROR] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-    }
+    console.error(`[API RESPONSE ✗] ${error.config?.method?.toUpperCase()} ${error.config?.url}`, {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
     return Promise.reject(error);
   }
 );
@@ -114,7 +108,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
       
-      const refreshToken = localStorage.getItem("refresh_token");
+      const refreshToken = cookieUtils.get("refresh_token");
       if (refreshToken) {
         try {
           console.log("[Auth] Attempting token refresh using refresh_token...");
@@ -128,7 +122,7 @@ apiClient.interceptors.response.use(
             console.log("[Auth] Token refresh successful. Rotating tokens.");
             
             localStorage.setItem("access_token", access_token);
-            localStorage.setItem("refresh_token", newRefreshToken);
+            cookieUtils.set("refresh_token", newRefreshToken, 30);
             
             // Process the queue
             processQueue(null, access_token);
@@ -146,7 +140,7 @@ apiClient.interceptors.response.use(
           processQueue(refreshError, null);
           
           localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
+          cookieUtils.remove("refresh_token");
           
           // Import useAuthStore dynamically to avoid circular dependency
           import("@/store/auth-store").then(({ useAuthStore }) => {

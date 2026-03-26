@@ -1,145 +1,49 @@
-import React, { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { travelListingsApi } from "@/api/travel-listings.api";
 import {
-  MapPin,
   Calendar,
-  Plane,
   ShieldCheck,
   ChevronRight,
   Loader2,
   Star,
-  ArrowRight,
   Info,
   Package,
   Clock,
   CheckCircle2,
   AlertCircle,
-  MessageSquare,
   Share2,
   Flag,
   User,
   ExternalLink,
-  Send
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
-import { matchesApi } from "@/api/matches.api";
-import EditModal, { EditField } from "@/components/modals/EditModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Link as RouterLink } from "react-router-dom";
 
 export default function ListingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
-  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
-  const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
-  const [offerMessage, setOfferMessage] = useState("");
-  const [offerAmount, setOfferAmount] = useState<string>("");
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editValues, setEditValues] = useState<any>({});
 
   useEffect(() => {
-    console.log("[ListingDetail] ✅ Component mounted — id from params:", id);
-    return () => console.log("[ListingDetail] Component unmounted");
+    console.log("[ListingDetail] mounted — id:", id);
   }, [id]);
 
-  const { data: listing, isLoading, error: listingError } = useQuery({
+  const { data: listing, isLoading, error } = useQuery({
     queryKey: ["listing", id],
     queryFn: async () => {
-      console.log("[ListingDetail] Fetching listing id:", id);
-      try {
-        const response = await apiClient.get(`/travel-listings/${id}`);
-        console.log("[ListingDetail] Raw response:", response);
-        console.log("[ListingDetail] response.data:", response.data);
-        console.log("[ListingDetail] response.data.data:", response.data.data);
-        return response.data.data;
-      } catch (err: any) {
-        console.error("[ListingDetail] Fetch error:", err);
-        console.error("[ListingDetail] Error response:", err.response?.data);
-        throw err;
-      }
-    }
-  });
-
-  console.log("[ListingDetail] Render — id:", id, "| isLoading:", isLoading, "| listing:", listing, "| error:", listingError);
-
-  const { data: matchingShipments } = useQuery({
-    queryKey: ["matches-for-listing", id],
-    queryFn: async () => {
-      if (!id) return null;
-      console.log("[ListingDetail] Fetching matches for listing:", id);
-      try {
-        const response = await matchesApi.getForListing(id, { limit: 10 });
-        console.log("[ListingDetail] Matches response:", response);
-        return response;
-      } catch (err: any) {
-        console.error("[ListingDetail] Matches fetch error:", err.response?.data || err);
-        throw err;
-      }
+      console.log("[ListingDetail] fetching /travel-listings/", id);
+      const response = await apiClient.get(`/travel-listings/${id}`);
+      console.log("[ListingDetail] response:", response.data);
+      return response.data.data;
     },
-    enabled: !!id
-  });
-
-  const { data: myShipments } = useQuery({
-    queryKey: ["my-open-shipments"],
-    queryFn: async () => {
-      if (!isAuthenticated) return [];
-      const response = await apiClient.get("/shipments/mine?status=open");
-      const data = response.data.data;
-      return (Array.isArray(data) ? data : data?.shipments || []) as any[];
-    },
-    enabled: isAuthenticated && isOfferModalOpen
-  });
-
-  const travelerOfferMutation = useMutation({
-    mutationFn: (shipmentId: string) => matchesApi.travelerOffer({
-      shipment_id: shipmentId,
-      listing_id: id!,
-      message: offerMessage
-    }),
-    onSuccess: () => {
-      toast.success("Offer sent successfully! The sender will be notified.");
-      setIsOfferModalOpen(false);
-      setSelectedShipmentId(null);
-      setOfferMessage("");
-      setOfferAmount("");
-      navigate("/account/matches");
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.data?.message || "Failed to send offer");
-    }
-  });
-
-  const updateListingMutation = useMutation({
-    mutationFn: (data: any) => travelListingsApi.update(id!, data),
-    onSuccess: () => {
-      toast.success("Listing updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["listing", id] });
-      setIsEditModalOpen(false);
-      setEditValues({});
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to update listing");
-    }
+    enabled: !!id,
   });
 
   const handleSendOffer = () => {
@@ -147,139 +51,15 @@ export default function ListingDetail() {
       toast.error("Please login to send an offer");
       return;
     }
-    if (!user?.kyc_status || user.kyc_status !== "approved") {
+    if (user?.kyc_status !== "approved") {
       toast.error("You must complete KYC verification to send offers");
       navigate("/account/kyc");
       return;
     }
-    setIsOfferModalOpen(true);
+    navigate(`/account/send-package?listing_id=${id}`);
   };
-
-  const handleSubmitOffer = () => {
-    if (!selectedShipmentId) {
-      toast.error("Please select a shipment");
-      return;
-    }
-    if (!offerAmount || parseFloat(offerAmount) <= 0) {
-      toast.error("Please enter a valid offer amount");
-      return;
-    }
-    travelerOfferMutation.mutate(selectedShipmentId);
-  };
-
-  const handleOpenEditModal = () => {
-    // Initialize all editable fields
-    setEditValues({
-      origin_city: listing?.origin_city || "",
-      destination_city: listing?.destination_city || "",
-      departure_date: listing?.departure_date?.split("T")[0] || "",
-      arrival_date: listing?.arrival_date?.split("T")[0] || "",
-      price_per_kg: listing?.price_per_kg || 0,
-      currency: listing?.currency || "USD",
-      available_capacity_kg: listing?.available_capacity_kg || 0,
-      airline: listing?.airline || "",
-      flight_number: listing?.flight_number || "",
-      notes: listing?.notes || "",
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleSaveEdit = () => {
-    updateListingMutation.mutate(editValues);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditModalOpen(false);
-    setEditValues({});
-  };
-
-  const isOwner = user?.id === listing?.traveler_id;
-
-  // All editable fields in one modal
-  const getEditModalFields = (): EditField[] => [
-    {
-      name: "origin_city",
-      label: "Origin City",
-      type: "text",
-      value: editValues.origin_city || "",
-      onChange: (v) => setEditValues({ ...editValues, origin_city: v }),
-      required: true,
-    },
-    {
-      name: "destination_city",
-      label: "Destination City",
-      type: "text",
-      value: editValues.destination_city || "",
-      onChange: (v) => setEditValues({ ...editValues, destination_city: v }),
-      required: true,
-    },
-    {
-      name: "departure_date",
-      label: "Departure Date",
-      type: "date",
-      value: editValues.departure_date?.split("T")[0] || "",
-      onChange: (v) => setEditValues({ ...editValues, departure_date: v }),
-      required: true,
-    },
-    {
-      name: "arrival_date",
-      label: "Arrival Date",
-      type: "date",
-      value: editValues.arrival_date?.split("T")[0] || "",
-      onChange: (v) => setEditValues({ ...editValues, arrival_date: v }),
-      required: true,
-    },
-    {
-      name: "price_per_kg",
-      label: "Price per KG",
-      type: "number",
-      value: editValues.price_per_kg || 0,
-      onChange: (v) => setEditValues({ ...editValues, price_per_kg: v }),
-      required: true,
-      min: 0,
-    },
-    {
-      name: "currency",
-      label: "Currency",
-      type: "text",
-      value: editValues.currency || "USD",
-      onChange: (v) => setEditValues({ ...editValues, currency: v }),
-      required: true,
-    },
-    {
-      name: "available_capacity_kg",
-      label: "Available Capacity (kg)",
-      type: "number",
-      value: editValues.available_capacity_kg || 0,
-      onChange: (v) => setEditValues({ ...editValues, available_capacity_kg: v }),
-      required: true,
-      min: 0,
-    },
-    {
-      name: "airline",
-      label: "Airline",
-      type: "text",
-      value: editValues.airline || "",
-      onChange: (v) => setEditValues({ ...editValues, airline: v }),
-    },
-    {
-      name: "flight_number",
-      label: "Flight Number",
-      type: "text",
-      value: editValues.flight_number || "",
-      onChange: (v) => setEditValues({ ...editValues, flight_number: v }),
-    },
-    {
-      name: "notes",
-      label: "Traveler's Notes",
-      type: "textarea",
-      value: editValues.notes || "",
-      onChange: (v) => setEditValues({ ...editValues, notes: v }),
-    },
-  ];
 
   if (isLoading) {
-    console.log("[ListingDetail] Still loading...");
     return (
       <div className="min-h-screen bg-carry-bg flex flex-col">
         <Header />
@@ -291,15 +71,17 @@ export default function ListingDetail() {
     );
   }
 
-  if (!listing) {
-    console.warn("[ListingDetail] No listing data — id:", id, "| error:", listingError);
+  if (error || !listing) {
+    console.error("[ListingDetail] error or no data:", error);
     return (
       <div className="min-h-screen bg-carry-bg flex flex-col">
         <Header />
         <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
           <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
           <h2 className="text-2xl font-bold text-carry-darker">Listing Not Found</h2>
-          <p className="text-gray-500 mt-2">The travel listing you are looking for does not exist or has been removed.</p>
+          <p className="text-gray-500 mt-2">
+            This travel listing does not exist or has been removed.
+          </p>
           <Button asChild className="mt-6">
             <Link to="/browse/listings">Browse Other Listings</Link>
           </Button>
@@ -309,15 +91,15 @@ export default function ListingDetail() {
     );
   }
 
-  console.log("[ListingDetail] Rendering full page — listing:", listing, "| traveler:", listing.traveler, "| categories:", listing.accepted_categories);
+  console.log("[ListingDetail] rendering listing:", listing);
 
   return (
     <div className="min-h-screen bg-carry-bg flex flex-col">
       <Header />
-      
+
       <main className="flex-1 pt-[120px] pb-20">
         <div className="max-w-6xl mx-auto px-6 space-y-8">
-          
+
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-[13px] text-gray-400">
             <Link to="/" className="hover:text-carry-light transition-colors">Home</Link>
@@ -328,32 +110,21 @@ export default function ListingDetail() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Details */}
+            {/* Left Column */}
             <div className="lg:col-span-2 space-y-8">
+
               {/* Header Card */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8">
                 <div className="flex flex-col md:flex-row justify-between gap-6">
                   <div className="space-y-4 flex-1">
-                    <div className="flex items-center gap-2 justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-green-50 text-green-600 hover:bg-green-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                          Active Listing
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-50 text-green-600 hover:bg-green-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                        Active Listing
+                      </Badge>
+                      {listing.is_verified_flight && (
+                        <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                          Verified Flight
                         </Badge>
-                        {listing.is_verified_flight && (
-                          <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-50 border-none px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                            Verified Flight
-                          </Badge>
-                        )}
-                      </div>
-                      {isOwner && (
-                        <Button
-                          onClick={handleOpenEditModal}
-                          variant="outline"
-                          size="sm"
-                          className="border-carry-light text-carry-light hover:bg-carry-light hover:text-white font-bold text-xs uppercase tracking-widest h-8"
-                        >
-                          Edit Listing
-                        </Button>
                       )}
                     </div>
                     <h1 className="text-3xl font-black text-carry-darker leading-tight">
@@ -362,35 +133,64 @@ export default function ListingDetail() {
                     <div className="flex items-center gap-6 text-sm text-gray-500">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-carry-light" />
-                        <span className="font-medium">Departing: {new Date(listing.departure_date).toLocaleDateString([], { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                        <span className="font-medium">
+                          Departing:{" "}
+                          {new Date(listing.departure_date).toLocaleDateString([], {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-carry-light" />
-                        <span className="font-medium">Arriving: {new Date(listing.arrival_date).toLocaleDateString([], { day: '2-digit', month: 'long' })}</span>
+                        <span className="font-medium">
+                          Arriving:{" "}
+                          {new Date(listing.arrival_date).toLocaleDateString([], {
+                            day: "2-digit",
+                            month: "long",
+                          })}
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div className="bg-carry-bg rounded-sm p-6 flex flex-col items-center justify-center text-center min-w-[160px]">
-                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest mb-1">Price per kg</span>
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest mb-1">
+                      Price per kg
+                    </span>
                     <div className="text-3xl font-black text-carry-light">
                       {listing.price_per_kg} {listing.currency}
                     </div>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">Starting Rate</span>
+                    <span className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                      Starting Rate
+                    </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-12 pt-8 border-t border-gray-50">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mt-12 pt-8 border-t border-gray-50">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Available Space</span>
-                    <span className="text-lg font-bold text-carry-darker">{listing.available_capacity_kg} kg</span>
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">
+                      Available Space
+                    </span>
+                    <span className="text-lg font-bold text-carry-darker">
+                      {listing.available_capacity_kg} kg
+                    </span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Airline</span>
-                    <span className="text-lg font-bold text-carry-darker">{listing.airline || "Not specified"}</span>
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">
+                      Airline
+                    </span>
+                    <span className="text-lg font-bold text-carry-darker">
+                      {listing.airline || "Not specified"}
+                    </span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">Flight ID</span>
-                    <span className="text-lg font-bold text-carry-darker">{listing.flight_number || "Verified"}</span>
+                    <span className="text-[10px] font-bold text-carry-muted uppercase tracking-widest block">
+                      Flight
+                    </span>
+                    <span className="text-lg font-bold text-carry-darker">
+                      {listing.flight_number || "—"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -404,23 +204,31 @@ export default function ListingDetail() {
                   <h3 className="text-lg font-bold text-carry-darker">What I Can Carry</h3>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {Array.isArray(listing.accepted_categories) && listing.accepted_categories.map((cat: any, idx: number) => {
-                    const name = typeof cat === 'object' && cat !== null ? cat.name : String(cat);
-                    const id = typeof cat === 'object' && cat !== null ? cat.id : idx;
-                    return (
-                      <div key={id} className="flex items-center gap-3 p-4 rounded-sm border border-gray-100 bg-gray-50/30">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                        <span className="text-sm font-bold text-carry-darker">{String(name)}</span>
-                      </div>
-                    );
-                  })}
+                  {Array.isArray(listing.accepted_categories) &&
+                    listing.accepted_categories.map((cat: any, idx: number) => {
+                      const name =
+                        typeof cat === "object" && cat !== null ? cat.name : String(cat);
+                      const catId =
+                        typeof cat === "object" && cat !== null ? cat.id : idx;
+                      return (
+                        <div
+                          key={catId}
+                          className="flex items-center gap-3 p-4 rounded-sm border border-gray-100 bg-gray-50/30"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                          <span className="text-sm font-bold text-carry-darker">{name}</span>
+                        </div>
+                      );
+                    })}
                 </div>
                 {listing.notes && (
                   <div className="mt-6 p-6 bg-amber-50/50 border border-amber-100 rounded-sm">
                     <div className="flex gap-3">
                       <Info className="w-5 h-5 text-amber-500 shrink-0" />
                       <div className="space-y-1 flex-1">
-                        <span className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Traveler's Notes</span>
+                        <span className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">
+                          Traveler's Notes
+                        </span>
                         <p className="text-sm text-amber-900 leading-relaxed">{listing.notes}</p>
                       </div>
                     </div>
@@ -429,28 +237,28 @@ export default function ListingDetail() {
               </div>
             </div>
 
-            {/* Right Column - Traveler & Actions */}
+            {/* Right Column */}
             <div className="space-y-6">
               {/* Action Card */}
               <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8 space-y-6">
                 <div className="space-y-2">
                   <h3 className="text-lg font-bold text-carry-darker">Have a Package?</h3>
-                  <p className="text-sm text-gray-500 leading-relaxed">Send an offer to carry a shipment and negotiate the delivery fee.</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Send an offer to this traveler to carry your shipment.
+                  </p>
                 </div>
-
                 <Button
                   onClick={handleSendOffer}
                   className="w-full h-14 bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs shadow-md"
                 >
                   Send an Offer
                 </Button>
-
                 <div className="flex items-center justify-center gap-4 pt-2">
                   <button className="flex items-center gap-2 text-[11px] font-bold text-carry-muted uppercase tracking-widest hover:text-carry-light transition-colors">
                     <Share2 className="w-4 h-4" />
                     Share
                   </button>
-                  <div className="w-[1px] h-4 bg-gray-100"></div>
+                  <div className="w-[1px] h-4 bg-gray-100" />
                   <button className="flex items-center gap-2 text-[11px] font-bold text-carry-muted uppercase tracking-widest hover:text-red-500 transition-colors">
                     <Flag className="w-4 h-4" />
                     Report
@@ -459,212 +267,84 @@ export default function ListingDetail() {
               </div>
 
               {/* Traveler Profile Card */}
-              <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm overflow-hidden">
-                <div className="p-8 space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-full bg-carry-bg border-2 border-white shadow-sm flex items-center justify-center overflow-hidden">
-                        {listing.traveler.avatar_url ? (
-                          <img src={listing.traveler.avatar_url} alt={listing.traveler.display_name} className="w-full h-full object-cover" />
-                        ) : (
-                          <User className="w-8 h-8 text-carry-light" />
-                        )}
-                      </div>
-                      {listing.traveler.badges?.includes("verified_traveler") && (
-                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                          <ShieldCheck className="w-5 h-5 text-green-500 fill-green-50" />
-                        </div>
+              <div className="bg-white rounded-sm border border-carry-light/10 shadow-sm p-8 space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full bg-carry-bg border-2 border-white shadow-sm flex items-center justify-center overflow-hidden">
+                      {listing.traveler?.avatar_url ? (
+                        <img
+                          src={listing.traveler.avatar_url}
+                          alt={listing.traveler.display_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-8 h-8 text-carry-light" />
                       )}
                     </div>
-                    <div>
-                      <h4 className="font-bold text-carry-darker">{listing.traveler.display_name}</h4>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">Verified Traveler</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-3 rounded-sm text-center">
-                      <div className="flex items-center justify-center gap-1 text-amber-500 mb-1">
-                        <Star className="w-3.5 h-3.5 fill-current" />
-                        <span className="text-sm font-black">{listing.traveler.rating?.toFixed(1) || 'N/A'}</span>
+                    {listing.traveler?.badges?.includes("verified_traveler") && (
+                      <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                        <ShieldCheck className="w-5 h-5 text-green-500 fill-green-50" />
                       </div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Avg Rating</span>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-sm text-center">
-                      <div className="text-sm font-black text-carry-darker mb-1">{listing.traveler.completed_deliveries || 0}</div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Deliveries</span>
-                    </div>
+                    )}
                   </div>
-
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-400 font-bold uppercase">Trust Score</span>
-                      <span className="text-carry-light font-black">{listing.traveler.trust_score}/100</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-carry-light" style={{ width: `${listing.traveler.trust_score}%` }}></div>
-                    </div>
+                  <div>
+                    <h4 className="font-bold text-carry-darker">
+                      {listing.traveler?.display_name || "Traveler"}
+                    </h4>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                      Verified Traveler
+                    </p>
                   </div>
-
-                  <Button variant="outline" asChild className="w-full font-bold text-[11px] uppercase tracking-widest h-10">
-                    <Link to={`/profile/${listing.traveler.id}`}>
-                      View Full Profile
-                      <ExternalLink className="w-3.5 h-3.5 ml-2" />
-                    </Link>
-                  </Button>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-sm text-center">
+                    <div className="flex items-center justify-center gap-1 text-amber-500 mb-1">
+                      <Star className="w-3.5 h-3.5 fill-current" />
+                      <span className="text-sm font-black">
+                        {listing.traveler?.rating?.toFixed(1) || "N/A"}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      Avg Rating
+                    </span>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-sm text-center">
+                    <div className="text-sm font-black text-carry-darker mb-1">
+                      {listing.traveler?.total_deliveries_as_traveler || 0}
+                    </div>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      Deliveries
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-gray-400 font-bold uppercase">Trust Score</span>
+                    <span className="text-carry-light font-black">
+                      {listing.traveler?.trust_score ?? "—"}/100
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-carry-light"
+                      style={{ width: `${listing.traveler?.trust_score ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <Button variant="outline" asChild className="w-full font-bold text-[11px] uppercase tracking-widest h-10">
+                  <RouterLink to={`/profile/${listing.traveler?.id}`}>
+                    View Full Profile
+                    <ExternalLink className="w-3.5 h-3.5 ml-2" />
+                  </RouterLink>
+                </Button>
               </div>
             </div>
           </div>
         </div>
       </main>
-
-      {/* Traveler Offer Modal */}
-      <Dialog open={isOfferModalOpen} onOpenChange={setIsOfferModalOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-none">
-          <DialogHeader className="p-8 bg-carry-darker text-white">
-            <DialogTitle className="text-2xl font-black">Send an Offer</DialogTitle>
-            <DialogDescription className="text-gray-300">
-              Select a shipment from the listings and propose to carry it for a negotiated fee.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="p-8 space-y-6 max-h-[500px] overflow-y-auto">
-            {/* Shipment Selection */}
-            <div className="space-y-4">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Select a Shipment</label>
-
-              {matchingShipments && matchingShipments.matches && matchingShipments.matches.length > 0 ? (
-                <div className="space-y-3">
-                  {matchingShipments.matches.map((match) => (
-                    <button
-                      key={match.match_id}
-                      onClick={() => setSelectedShipmentId(match.match_id)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-sm border transition-all text-left group",
-                        selectedShipmentId === match.match_id
-                          ? "border-carry-light bg-carry-bg ring-1 ring-carry-light"
-                          : "border-gray-100 bg-white hover:border-gray-200"
-                      )}
-                    >
-                      <div className={cn(
-                        "w-10 h-10 rounded-sm flex items-center justify-center transition-colors shrink-0",
-                        selectedShipmentId === match.match_id ? "bg-carry-light text-white" : "bg-gray-50 text-gray-400 group-hover:text-carry-light"
-                      )}>
-                        <Package className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h5 className="font-bold text-carry-darker text-sm">
-                          {match.shipment_request?.sender_display_name || "Sender"}
-                        </h5>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">
-                          {match.shipment_request?.destination_city || "Destination"} - {match.shipment_request?.declared_weight_kg || 0}kg
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-xs font-black text-carry-light block">
-                          {match.payment_requested_amount ? `$${match.payment_requested_amount}` : "Match score: " + match.match_score}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-8 border-2 border-dashed border-gray-100 rounded-sm text-center">
-                  <Package className="w-8 h-8 text-gray-200 mx-auto mb-3" />
-                  <p className="text-sm text-gray-500">No matching shipments found for this route.</p>
-                </div>
-              )}
-            </div>
-
-            {selectedShipmentId && (
-              <>
-                {/* Offer Amount */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Your Offer Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-carry-light font-bold">$</span>
-                    <Input
-                      type="number"
-                      placeholder="Enter amount"
-                      value={offerAmount}
-                      onChange={(e) => setOfferAmount(e.target.value)}
-                      className="pl-8 h-12 border-gray-100 focus:border-carry-light"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-
-                {/* Message */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted block ml-1">Message (Optional)</label>
-                  <Textarea
-                    placeholder="Add a message to your offer (e.g., pickup details, handling notes)..."
-                    value={offerMessage}
-                    onChange={(e) => setOfferMessage(e.target.value)}
-                    className="min-h-[100px] border-gray-100 focus:border-carry-light resize-none"
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="p-4 bg-blue-50 rounded-sm flex gap-3">
-              <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-blue-700 leading-relaxed">
-                Once you send this offer, the sender will receive a notification and can accept or start negotiating with you.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter className="p-8 pt-0 flex flex-col sm:flex-row gap-3 border-t border-gray-100">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsOfferModalOpen(false);
-                setSelectedShipmentId(null);
-                setOfferMessage("");
-                setOfferAmount("");
-              }}
-              className="flex-1 font-bold uppercase tracking-widest text-xs h-12"
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={!selectedShipmentId || !offerAmount || travelerOfferMutation.isPending}
-              onClick={handleSubmitOffer}
-              className="flex-1 bg-carry-light hover:bg-carry-light/90 text-white font-bold uppercase tracking-widest text-xs h-12"
-            >
-              {travelerOfferMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" /> Send Offer
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Modal */}
-      <EditModal
-        open={isEditModalOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsEditModalOpen(false);
-            setEditValues({});
-          }
-        }}
-        title="Edit Travel Listing"
-        description="Update all details of your travel listing."
-        fields={getEditModalFields()}
-        onSave={handleSaveEdit}
-        onCancel={handleCancelEdit}
-        isLoading={updateListingMutation.isPending}
-      />
 
       <Footer />
     </div>

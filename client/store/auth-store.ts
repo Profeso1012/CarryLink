@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { cookieUtils } from "@/lib/cookie-utils";
 
 export interface User {
   id: string;
@@ -52,18 +51,13 @@ export const useAuthStore = create<AuthState>()(
       setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
       setLoading: (isLoading) => set({ isLoading }),
       logout: () => {
-        const refreshToken = cookieUtils.get("refresh_token");
-        if (refreshToken) {
-          // Call backend logout API to revoke tokens
-          import("@/lib/api-client").then(({ apiClient }) => {
-            apiClient.post("/auth/logout", { refresh_token: refreshToken }).catch(() => {
-              // If logout API fails, still clear local storage
-              console.warn("Backend logout failed, clearing local storage anyway");
-            });
+        // Call backend logout to revoke tokens and clear cookies server-side
+        import("@/lib/api-client").then(({ apiClient }) => {
+          apiClient.post("/auth/logout", {}, { withCredentials: true }).catch(() => {
+            console.warn("Backend logout failed, clearing local state anyway");
           });
-        }
+        });
         localStorage.removeItem("access_token");
-        cookieUtils.remove("refresh_token");
         set({ user: null, isAuthenticated: false });
       },
     }),

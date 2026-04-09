@@ -154,7 +154,7 @@ export const shipmentsApi = {
 
   // Update shipment
   update: async (id: string, data: Partial<CreateShipmentRequest>): Promise<ShipmentRequest> => {
-    const response = await apiClient.put(`/shipments/${id}`, data);
+    const response = await apiClient.patch(`/shipments/${id}`, data);
     return response.data.data;
   },
 

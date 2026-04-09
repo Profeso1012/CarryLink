@@ -120,7 +120,7 @@ export default function MyMatches() {
   });
 
   const acceptMatchMutation = useMutation({
-    mutationFn: (matchId: string) => matchesApi.accept(matchId),
+    mutationFn: (matchId: string) => matchesApi.respond(matchId, 'accept'),
     onSuccess: (data) => {
       toast.success("Match accepted! Opening chat...");
       if (data.data.conversation_id) {
@@ -136,7 +136,7 @@ export default function MyMatches() {
 
   const rejectMatchMutation = useMutation({
     mutationFn: (matchId: string) =>
-      matchesApi.reject(matchId, { reason: rejectReason }),
+      matchesApi.respond(matchId, 'reject', rejectReason),
     onSuccess: () => {
       toast.success("Match rejected");
       setRejectModalOpen(false);

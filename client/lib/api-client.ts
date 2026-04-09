@@ -11,6 +11,7 @@ if (IS_TEST_MODE) {
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true, // send cookies on every request
   headers: {
     "Content-Type": "application/json",
   },
@@ -66,12 +67,12 @@ const processQueue = (error: any, token: string | null = null) => {
 apiClient.interceptors.request.use(
   (config) => {
     // If URL starts with a slash, remove it to ensure it's relative to baseURL
-    // This prevents axios from treating it as an absolute path from the root
     if (config.url?.startsWith("/")) {
       config.url = config.url.substring(1);
     }
 
-    const token = localStorage.getItem("access_token");
+    // Prefer cookie-stored access_token, fall back to localStorage for compatibility
+    const token = cookieUtils.get("access_token") || localStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -107,60 +108,55 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-      
-      const refreshToken = cookieUtils.get("refresh_token");
-      if (refreshToken) {
+
+      // Refresh token is in the HttpOnly cookie — send credentials so browser includes it
+      if (cookieUtils.get("refresh_token") || document.cookie.includes("refresh_token")) {
         try {
-          console.log("[Auth] Attempting token refresh using refresh_token...");
-          // We use basic axios here to avoid interceptors
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
-            refresh_token: refreshToken,
-          });
-          
+          console.log("[Auth] Attempting token refresh via cookie...");
+          // withCredentials ensures the browser sends the refresh_token cookie
+          const response = await axios.post(
+            `${API_BASE_URL}/auth/refresh-token`,
+            {},
+            { withCredentials: true }
+          );
+
           if (response.data?.success) {
-            const { access_token, refresh_token: newRefreshToken } = response.data.data;
-            console.log("[Auth] Token refresh successful. Rotating tokens.");
-            
-            localStorage.setItem("access_token", access_token);
-            cookieUtils.set("refresh_token", newRefreshToken, 30);
-            
-            // Process the queue
-            processQueue(null, access_token);
-            
-            // Update original request
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
+            // Tokens are now set as cookies by the server — no manual storage needed
+            // Read the new access_token from cookie for the queued requests
+            const newAccessToken = cookieUtils.get("access_token") || "";
+            console.log("[Auth] Token refresh successful via cookie.");
+
+            processQueue(null, newAccessToken);
+
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
             return apiClient.request(originalRequest);
           } else {
             throw new Error("Refresh token call returned success: false");
           }
         } catch (refreshError: any) {
           console.error("[Auth] Refresh token call failed:", refreshError.response?.data || refreshError.message);
-          
-          // Clear queue and storage
+
           processQueue(refreshError, null);
-          
+
+          // Clear any lingering localStorage token
           localStorage.removeItem("access_token");
-          cookieUtils.remove("refresh_token");
-          
-          // Import useAuthStore dynamically to avoid circular dependency
+
           import("@/store/auth-store").then(({ useAuthStore }) => {
             console.log("[Auth] Logging out user and clearing store");
             useAuthStore.getState().logout();
           });
-          
-          // Only redirect if not already on the home page
+
           if (window.location.pathname !== "/") {
             console.warn("[Auth] Redirecting to login page");
             window.location.href = "/";
           }
-          
+
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
         }
       } else {
-        console.warn("[Auth] No refresh token found in storage, forcing logout");
-        // No refresh token available, logout immediately
+        console.warn("[Auth] No refresh token cookie found, forcing logout");
         import("@/store/auth-store").then(({ useAuthStore }) => {
           useAuthStore.getState().logout();
         });

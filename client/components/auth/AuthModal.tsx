@@ -10,7 +10,6 @@ import { Mail, Phone, Lock, User, Globe, Loader2, Eye, EyeOff, Shield } from "lu
 import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
-import { cookieUtils } from "@/lib/cookie-utils";
 
 type AuthStep = "email" | "email_otp" | "register_form" | "phone_otp" | "login_password" | "forgot_password" | "forgot_otp" | "reset_password";
 
@@ -94,14 +93,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       const response = await authApi.login(email, password);
       console.log("[AUTH DEBUG] Login success response:", response);
       console.log("[AUTH DEBUG] Login response data:", response.data);
-      
-      const { user, access_token, refresh_token } = response.data;
+
+      const { user } = response.data;
       console.log("[AUTH DEBUG] User object from login:", user);
       console.log("[AUTH DEBUG] User is_email_verified:", user.is_email_verified);
       console.log("[AUTH DEBUG] User is_phone_verified:", user.is_phone_verified);
-      
-      localStorage.setItem("access_token", access_token);
-      cookieUtils.set("refresh_token", refresh_token, 30);
+
       setUser(user);
       toast.success("Welcome back!");
       onClose();
@@ -217,9 +214,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
         try {
           // Try to login after email verification
           const loginResponse = await authApi.login(email, password);
-          const { user, access_token, refresh_token } = loginResponse.data;
-          localStorage.setItem("access_token", access_token);
-          cookieUtils.set("refresh_token", refresh_token, 30);
+          const { user } = loginResponse.data;
           setUser(user);
           toast.success("Email verified! Welcome back!");
           onClose();
@@ -314,9 +309,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       
       // Check if we get login tokens back (for login verification flow)
       if (response.data?.user && response.data?.access_token) {
-        const { user, access_token, refresh_token } = response.data;
-        localStorage.setItem("access_token", access_token);
-        cookieUtils.set("refresh_token", refresh_token, 30);
+        const { user } = response.data;
         setUser(user);
         
         if (isLoginVerification) {

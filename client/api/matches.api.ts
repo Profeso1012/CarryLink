@@ -161,15 +161,9 @@ export const matchesApi = {
     return response.data;
   },
 
-  // Accept a match (either party accepts the approach)
-  accept: async (matchId: string): Promise<MatchAcceptResponse> => {
-    const response = await apiClient.post(`matches/${matchId}/accept`);
-    return response.data;
-  },
-
-  // Reject a match
-  reject: async (matchId: string, payload: MatchRejectPayload): Promise<MatchRejectResponse> => {
-    const response = await apiClient.post(`matches/${matchId}/reject`, payload);
+  // Respond to a match (accept or reject)
+  respond: async (matchId: string, action: 'accept' | 'reject', reason?: string) => {
+    const response = await apiClient.post(`matches/${matchId}/response`, { action, reason });
     return response.data;
   },
 

@@ -86,7 +86,7 @@ export const travelListingsApi = {
 
   // Update listing
   update: async (id: string, data: Partial<TravelListing>) => {
-    const response = await apiClient.put(`travel-listings/${id}`, data);
+    const response = await apiClient.patch(`travel-listings/${id}`, data);
     return response.data.data;
   },
 

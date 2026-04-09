@@ -86,11 +86,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    
+
     // If the error is 401 and not already retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
       console.warn("[Auth] Received 401 Unauthorized for:", originalRequest.url);
-      
+
       // If we are already refreshing, queue this request
       if (isRefreshing) {
         console.log("[Auth] Refresh in progress, queueing request:", originalRequest.url);
@@ -163,9 +163,13 @@ apiClient.interceptors.response.use(
         if (window.location.pathname !== "/") {
           window.location.href = "/";
         }
+        return Promise.reject(error);
       }
     }
-    
+
+    // For all other errors (403, 404, 422, 500, etc.), just reject them
+    // The calling code should handle these errors properly
+    console.log("[API] Error status:", error.response?.status, "will be rejected to caller");
     return Promise.reject(error);
   }
 );

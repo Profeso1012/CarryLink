@@ -62,6 +62,7 @@ export interface CreateShipmentRequest {
   pickup_address?: string;
   delivery_address?: string;
   special_instructions?: string;
+  image_urls?: string[]; // Cloudinary URLs instead of files
 }
 
 export interface ShipmentFilters {
@@ -94,29 +95,9 @@ export interface ShipmentsResponse {
 }
 
 export const shipmentsApi = {
-  // Create shipment with images
-  create: async (data: CreateShipmentRequest, images?: File[]): Promise<ShipmentRequest> => {
-    const formData = new FormData();
-    
-    // Append all text fields
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, value.toString());
-      }
-    });
-    
-    // Append images if provided
-    if (images && images.length > 0) {
-      images.forEach(image => {
-        formData.append('images', image);
-      });
-    }
-    
-    const response = await apiClient.post("/shipments", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+  // Create shipment with Cloudinary image URLs
+  create: async (data: CreateShipmentRequest): Promise<ShipmentRequest> => {
+    const response = await apiClient.post("/shipments", data);
     return response.data.data;
   },
 
@@ -164,17 +145,10 @@ export const shipmentsApi = {
     return response.data.data;
   },
 
-  // Add images to existing shipment
-  addImages: async (id: string, images: File[]): Promise<{ images: ShipmentImage[] }> => {
-    const formData = new FormData();
-    images.forEach(image => {
-      formData.append('images', image);
-    });
-    
-    const response = await apiClient.post(`/shipments/${id}/images`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+  // Add images to existing shipment using Cloudinary URLs
+  addImages: async (id: string, imageUrls: string[]): Promise<{ images: ShipmentImage[] }> => {
+    const response = await apiClient.post(`/shipments/${id}/images`, {
+      image_urls: imageUrls,
     });
     return response.data.data;
   },

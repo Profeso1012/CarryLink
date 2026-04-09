@@ -81,15 +81,10 @@ export const usersApi = {
     return response.data.data;
   },
 
-  // Upload avatar
-  uploadAvatar: async (file: File): Promise<{ avatar_url: string; profile: UserProfile }> => {
-    const formData = new FormData();
-    formData.append('avatar', file);
-    
-    const response = await apiClient.post("/users/me/avatar", formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+  // Upload avatar - now takes a Cloudinary URL instead of a file
+  uploadAvatar: async (avatarUrl: string): Promise<{ avatar_url: string; profile: UserProfile }> => {
+    const response = await apiClient.post("/users/me/avatar", {
+      avatar_url: avatarUrl,
     });
     return response.data.data;
   },

@@ -25,6 +25,8 @@ import {
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth-store";
+import { uploadToCloudinary } from "@/lib/cloudinary-utils";
+import { usersApi } from "@/api/users.api";
 
 export default function Settings() {
   const { user, setUser } = useAuthStore();
@@ -102,47 +104,49 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file is an image
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
     setIsUploading(true);
     try {
-      // Send image as multipart form data to backend
-      const formData = new FormData();
-      formData.append("avatar", file);
+      console.log("[SETTINGS DEBUG] Uploading avatar to Cloudinary:", file.name);
 
-      console.log("[SETTINGS DEBUG] Uploading avatar file:", file.name);
-      
-      const response = await apiClient.post("/users/me/avatar", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Step 1: Upload to Cloudinary
+      const cloudinaryResponse = await uploadToCloudinary(file, "avatar");
+      const avatarUrl = cloudinaryResponse.secure_url;
 
-      console.log("[SETTINGS DEBUG] Avatar upload response:", response.data);
-      const updatedUser = response.data.data;
-      console.log("[SETTINGS DEBUG] Updated user data:", updatedUser);
-      console.log("[SETTINGS DEBUG] Avatar URL from response:", updatedUser.avatar_url);
-      console.log("[SETTINGS DEBUG] Profile avatar URL:", updatedUser.profile?.avatar_url);
-      
+      console.log("[SETTINGS DEBUG] Cloudinary upload successful:", avatarUrl);
+
+      // Step 2: Send URL to backend
+      const response = await usersApi.uploadAvatar(avatarUrl);
+
+      console.log("[SETTINGS DEBUG] Avatar update response:", response);
+      const updatedUser = response.profile || response;
+
       // Update the auth store with the updated user data from backend
       if (user) {
         setUser({
           ...user,
           ...updatedUser,
-          avatar_url: updatedUser.avatar_url,
+          avatar_url: updatedUser.avatar_url || avatarUrl,
           profile: {
             ...user.profile,
-            ...updatedUser.profile,
-            avatar_url: updatedUser.avatar_url
+            ...updatedUser,
+            avatar_url: updatedUser.avatar_url || avatarUrl
           }
         });
       }
-      
+
       // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: ["user-me"] });
-      
+
       toast.success("Avatar updated successfully!");
     } catch (error: any) {
       console.error("Avatar upload error:", error);
-      toast.error(error.response?.data?.message || "Failed to upload avatar");
+      toast.error(error.response?.data?.message || error.message || "Failed to upload avatar");
     } finally {
       setIsUploading(false);
     }

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Package, Calendar, Weight, DollarSign, Info, Loader2, MapPin, Box, User, Phone, Mail, ImagePlus, CheckCircle2, AlertTriangle, XCircle, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shipmentsApi, CreateShipmentRequest } from "@/api/shipments.api";
+import { uploadToCloudinary } from "@/lib/cloudinary-utils";
 
 const ITEM_CATEGORIES = [
   { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Electronics' },
@@ -63,8 +64,7 @@ export default function SendPackage() {
     message: string;
   }>({ status: 'idle', message: '' });
 
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   // Debounce for prohibited check
@@ -102,7 +102,10 @@ export default function SendPackage() {
 
   const createShipmentMutation = useMutation({
     mutationFn: async (data: CreateShipmentRequest) => {
-      return shipmentsApi.create(data, uploadedFiles);
+      return shipmentsApi.create({
+        ...data,
+        image_urls: uploadedImageUrls,
+      });
     },
     onSuccess: (shipment) => {
       const isDraft = shipment.status === 'draft';
@@ -142,26 +145,37 @@ export default function SendPackage() {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    if (uploadedFiles.length + files.length > 5) {
+    if (uploadedImageUrls.length + files.length > 5) {
       toast.error("You can upload at most 5 images.");
       return;
     }
 
-    const newFiles = Array.from(files);
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setIsUploading(true);
+    try {
+      const filesToUpload = Array.from(files);
+      const uploadPromises = filesToUpload.map((file) =>
+        uploadToCloudinary(file, "shipment")
+      );
 
-    // Create preview URLs
-    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-    setUploadedImages(prev => [...prev, ...newPreviews]);
+      const results = await Promise.all(uploadPromises);
+      const newUrls = results.map((result) => result.secure_url);
+
+      setUploadedImageUrls((prev) => [...prev, ...newUrls]);
+      toast.success(`${newUrls.length} image(s) uploaded successfully`);
+    } catch (error: any) {
+      console.error("Image upload failed:", error);
+      toast.error(error.message || "Failed to upload image(s)");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const removeImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedImageUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -294,7 +308,7 @@ export default function SendPackage() {
                   <div className="space-y-3">
                     <Label className="text-[11px] font-bold uppercase tracking-widest text-carry-muted">Package Images (Optional, max 5)</Label>
                     <div className="flex flex-wrap gap-4">
-                      {uploadedImages.map((url, i) => (
+                      {uploadedImageUrls.map((url, i) => (
                         <div key={i} className="relative w-24 h-24 rounded-sm border border-gray-100 overflow-hidden group">
                           <img src={url} alt={`Upload ${i}`} className="w-full h-full object-cover" />
                           <button
@@ -306,14 +320,14 @@ export default function SendPackage() {
                           </button>
                         </div>
                       ))}
-                      {uploadedImages.length < 5 && (
+                      {uploadedImageUrls.length < 5 && (
                         <label className={cn(
                           "w-24 h-24 border-2 border-dashed border-gray-200 rounded-sm flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-carry-light hover:text-carry-light transition-all",
                           isUploading && "pointer-events-none opacity-50"
                         )}>
                           {isUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Camera className="w-6 h-6" />}
                           <span className="text-[9px] font-bold uppercase tracking-widest mt-2">{isUploading ? "Uploading..." : "Add Photo"}</span>
-                          <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                          <input type="file" multiple accept="image/*" onChange={handleImageUpload} disabled={isUploading} className="hidden" />
                         </label>
                       )}
                     </div>

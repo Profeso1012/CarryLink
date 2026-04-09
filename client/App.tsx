@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./global.css";
 
 import { Toaster } from "@/components/ui/toaster";
@@ -6,6 +6,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { useAuthStore } from "@/store/auth-store";
+import { authApi } from "@/api/auth.api";
 
 // Simple error boundary to surface crashes instead of blank screen
 class ErrorBoundary extends React.Component<
@@ -95,12 +97,44 @@ const PlaceholderPage = ({ title, sidebar = false }: { title: string; sidebar?: 
   );
 };
 
+// Initialize auth from cookies on app load
+function AuthInitializer() {
+  const { setUser, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    const initAuth = async () => {
+      // Try to fetch current user from the backend
+      // If there's a valid session (access token in cookie), this will succeed
+      try {
+        const response = await authApi.getCurrentUser();
+        if (response.data?.user) {
+          console.log("[Auth Init] Current user restored from cookies:", response.data.user);
+          setUser(response.data.user);
+        }
+      } catch (error: any) {
+        console.log("[Auth Init] No valid session found or session expired:", error.response?.status);
+        // If we can't fetch the user, the api-client will handle logout on 401
+      }
+    };
+
+    // Check if there's a refresh token cookie (indicates a session)
+    // Only try to initialize if we have some indication of a session
+    const hasRefreshToken = document.cookie.includes("refresh_token");
+    if (hasRefreshToken || isAuthenticated) {
+      initAuth();
+    }
+  }, [setUser, isAuthenticated]);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+        <AuthInitializer />
         <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Index />} />

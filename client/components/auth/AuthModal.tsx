@@ -106,14 +106,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       console.log("[AUTH DEBUG] Login error:", error);
       console.log("[AUTH DEBUG] Error response:", error.response);
       console.log("[AUTH DEBUG] Error response data:", error.response?.data);
-      
+
       const errorData = error.response?.data?.error || error.response?.data || {};
-      const errorMessage = errorData.message || error.response?.data?.message || "Login failed";
+      const errorMessage = errorData.message || error.response?.data?.message || error.message || "Login failed";
       const errorCode = errorData.code || error.response?.data?.code;
-      
+
       console.log("[AUTH DEBUG] Error code:", errorCode);
       console.log("[AUTH DEBUG] Error message:", errorMessage);
-      
+      console.log("[AUTH DEBUG] Error status:", error.response?.status);
+
       // Handle verification errors
       if (errorCode === 'EMAIL_NOT_VERIFIED' || errorMessage.includes('verify your email')) {
         toast.info("Please verify your email address to continue");
@@ -126,8 +127,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
         setStep("phone_otp");
         toast.success("Verification code sent to your phone");
       } else {
-        toast.error(errorMessage);
-        
+        toast.error(errorMessage || "Login failed");
+
         // Set field-specific errors
         if (errorCode === 'INVALID_CREDENTIALS') {
           setErrors({ password: "Invalid email or password" });
@@ -207,7 +208,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     try {
       const response = await authApi.verifyEmail(email, otp);
       setOtp("");
-      
+
       // Check if this is a login verification (user already exists and is trying to login)
       if (isLoginVerification) {
         // This is login verification - check if phone also needs verification
@@ -225,17 +226,27 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
             setStep("phone_otp");
             toast.success("Email verified! Now verify your phone number.");
           } else {
+            console.error("[EMAIL OTP DEBUG] Login after email verification failed:", loginError);
             throw loginError;
           }
         }
       } else {
         // Registration flow - need to verify phone next
-        await authApi.sendPhoneOTP(email);
+        try {
+          await authApi.sendPhoneOTP(email);
+        } catch (sendError: any) {
+          console.error("[EMAIL OTP DEBUG] Failed to send phone OTP:", sendError);
+          toast.error("Failed to send phone verification code. Please try again.");
+          setIsLoading(false);
+          return;
+        }
         setStep("phone_otp");
         toast.success("Email verified! Now verify your phone number.");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Invalid OTP");
+      console.error("[EMAIL OTP DEBUG] Email verification failed:", error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error?.message || error.message || "Invalid OTP";
+      toast.error(errorMessage);
       setErrors({ otp: "Invalid or expired code" });
     } finally {
       setIsLoading(false);
@@ -246,7 +257,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     e.preventDefault();
     setIsLoading(true);
     setErrors({});
-    
+
     try {
       // Validate phone number length
       if (!phone || phone.length < 7) {
@@ -290,7 +301,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
       }
       toast.success("Registration successful! Please verify your email to continue.");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Registration failed");
+      console.error("[REGISTRATION DEBUG] Registration failed:", error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error?.message || error.message || "Registration failed";
+      toast.error(errorMessage);
       setRecaptchaToken(null);
       if (recaptchaRef.current) {
         recaptchaRef.current.reset();
@@ -306,12 +319,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
     setErrors({});
     try {
       const response = await authApi.verifyPhone(email, otp);
-      
-      // Check if we get login tokens back (for login verification flow)
-      if (response.data?.user && response.data?.access_token) {
+
+      // Tokens are now in cookies, not in response body
+      // If we have a user object, it means verification succeeded
+      if (response.data?.user) {
         const { user } = response.data;
         setUser(user);
-        
+
         if (isLoginVerification) {
           toast.success("Phone verified! Welcome back!");
           onClose();
@@ -326,10 +340,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = "login" }: Au
           navigate("/account/dashboard");
         }
       } else {
-        // Registration completion - user needs to login
-        toast.success("Account created successfully! Please sign in to continue.");
+        // Fallback - should not happen with new API
+        toast.success("Phone verified! Please sign in to continue.");
         onClose();
-        // Reset form and redirect to login
         setStep("login_password");
         setPassword("");
         setIsLoginMode(true);
